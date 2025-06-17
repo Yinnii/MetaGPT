@@ -4,7 +4,8 @@ from metagpt.ext.sela.evaluation.visualize_mcts import (
     build_tree_recursive,
     visualize_tree,
 )
-from metagpt.ext.sela.MCTS import MCTS, create_initial_state, initialize_di_root_node
+from metagpt.ext.sela.search.tree_search import create_initial_state, initialize_di_root_node
+from metagpt.ext.sela.search.search_algorithm import MCTS
 from metagpt.ext.sela.run_experiment import get_args
 from metagpt.ext.sela.utils import DATA_CONFIG
 
