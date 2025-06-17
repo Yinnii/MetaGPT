@@ -190,3 +190,4 @@ cov.xml
 .python-version
 *.csv
 metagpt/ext/sela/results/*
+*.json
