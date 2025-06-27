@@ -1,4 +1,4 @@
-import json
+import json, requests
 
 from metagpt.ext.sela.utils import clean_json_from_rsp, load_data_config
 from metagpt.llm import LLM
@@ -22,70 +22,16 @@ DATASET_DESCRIPTION_CUSTOM_PROMPT = """
 {dataset_description}
 """
 
-DATASET_INSIGHT_PROMPT = """
-{description}
-
-# Instruction
-Propose insights to help improve the performance of the model on this dataset.
-The insights should be proposed based on the dataset description with different task types.
-Each task type should have at least 5 insights.
-Make sure each method is diverse enough and can be implemented separately.
-Be specific about models' choices, ensemble and tuning techniques, and preprocessing & feature engineering techniques.
-Your model choices should be advanced enough to be helpful.
-
-# Format
-```json
-[
-    {{
-        "task_type": "EDA",
-        "insights": [
-            "insight1",
-            "insight2",
-            "insight3",
-            ...
-            "insightN"
-        ]   
-    }},
-    {{
-        "task_type": "Data Preprocessing",
-        "insights": [
-            "insight1",
-            "insight2",
-            "insight3",
-            ...
-            "insightN"
-        ]   
-    }},
-    {{
-        "task_type": "Feature Engineering",
-        "insights": [
-            "insight1",
-            "insight2",
-            "insight3",
-            ...
-            "insightN"
-        ]   
-    }},
-    {{
-        "task_type": "Model Training",
-        "insights": [
-            "insight1",
-            "insight2",
-            "insight3",
-            ...
-            "insightN"
-        ]   
-    }}
-]
-```
-"""
 
 DATASET_INSIGHT_PROMPT_ONTORAG = """
 {description}
 
+# Additional Information
+{hyperparameter_settings_examples}
+
 # Instruction
 Propose insights to help improve the performance of the model on this dataset.
-The insights should be proposed based on the dataset description with different task types.
+The insights should be proposed based on the dataset description and the example settings with different task types.
 Each task type should have at least 5 insights.
 Make sure each method is diverse enough and can be implemented separately.
 Be specific about models' choices, ensemble and tuning techniques, and preprocessing & feature engineering techniques.
@@ -146,43 +92,6 @@ Your model choices should be advanced enough to be helpful.
     }}
 ]
 ```
-"""
-
-INSIGHT_PROPOSAL_PROMPT = """
-You are an AI assistant tasked with analyzing a machine learning solution and proposing new insights to improve its performance. Given the current solution code and development score, suggest innovative approaches to enhance the model.
-
-Current Solution Code:
-{solution_code}
-
-Development Score: {dev_score}
-
-Based on this information, propose 3-5 new insights across different aspects of the machine learning pipeline (Data Preprocessing, Feature Engineering, and Model Training). Your insights should be specific, actionable, and have the potential to improve the model's performance.
-
-Please format your response as a JSON array with the following structure:
-[
-
-    {{
-        "task_type": "Data Preprocessing",
-        "insights": [
-            "insight1",
-            "insight2"
-        ]
-    }},
-    {{
-        "task_type": "Feature Engineering",
-        "insights": [
-            "insight1",
-            "insight2"
-        ]
-    }},
-    {{
-        "task_type": "Model Training",
-        "insights": [
-            "insight1",
-            "insight2"
-        ]
-    }}
-]
 """
 
 INSIGHT_PROPOSAL_PROMPT_ONTORAG = """
@@ -243,7 +152,7 @@ KEY_DATASET_FEATURES = [
 TASK_TO_ID = {"EDA": 1, "Data Preprocessing": 2, "Feature Engineering": 3, "Hyperparameter Tuning":4, "Model Training": 5, "Model Evaluation": 6}
 
 
-class SolutionDesigner:
+class OntoRAGSolutionDesigner:
     data_dir: str = DATA_CONFIG["datasets_dir"]
 
     async def generate_solutions(self, dataset_info, dataset_name, save_analysis_pool=True):
@@ -256,7 +165,17 @@ class SolutionDesigner:
             )
         else:
             description_prompt = DATASET_DESCRIPTION_CUSTOM_PROMPT.format(dataset_description=dataset_info)
-        context = DATASET_INSIGHT_PROMPT.format(description=description_prompt)
+
+        try:
+            url = "http://localhost:6666/retrieve_parameters"
+            payload = {"query": description_prompt}
+            examples = requests.post(url, json=payload).json().get("message", "No examples found.")
+        except Exception as e:
+            print(f"Error retrieving parameters: {e}")
+            examples = "No examples found. Please provide hyperparameter settings manually."
+        
+        context = DATASET_INSIGHT_PROMPT_ONTORAG.format(description=description_prompt, 
+                                                        hyperparameter_settings_examples=examples)
         rsp = await llm.aask(context)
         rsp = clean_json_from_rsp(rsp)
         analysis_pool = self.process_analysis_pool(json.loads(rsp))
@@ -267,7 +186,7 @@ class SolutionDesigner:
 
     async def propose_new_insights(self, solution, score):
         llm = LLM()
-        context = INSIGHT_PROPOSAL_PROMPT.format(solution_code=solution, dev_score=score)
+        context = INSIGHT_PROPOSAL_PROMPT_ONTORAG.format(solution_code=solution, dev_score=score)
         rsp = await llm.aask(context)
         rsp = clean_json_from_rsp(rsp)
         new_insights = self.process_analysis_pool(json.loads(rsp))

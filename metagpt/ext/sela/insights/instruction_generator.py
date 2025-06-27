@@ -4,6 +4,7 @@ import random
 from difflib import SequenceMatcher
 
 from metagpt.ext.sela.insights.solution_designer import SolutionDesigner
+from metagpt.ext.sela.insights.solution_designer_ontorag import OntoRAGSolutionDesigner
 from metagpt.ext.sela.utils import clean_json_from_rsp, load_data_config, mcts_logger
 from metagpt.llm import LLM
 from metagpt.schema import Message
@@ -49,7 +50,7 @@ class InstructionGenerator:
             with open(dataset_info_path, "r") as file:
                 self.dataset_info = json.load(file)
         self.use_fixed_insights = use_fixed_insights
-        self.proposer = SolutionDesigner()
+        self.proposer = OntoRAGSolutionDesigner()
         if self.file_path is None:
             self.from_scratch = True
         else:
@@ -137,6 +138,7 @@ class InstructionGenerator:
 
     async def generate_solutions_from_scratch(self, dataset_info, dataset_name):
         insight_pool = await self.proposer.generate_solutions(dataset_info, dataset_name, save_analysis_pool=False)
+        mcts_logger.info(f"Generated {insight_pool} insights from scratch for dataset {dataset_name}")
         return insight_pool
 
     def add_insight(self, new_insights):
