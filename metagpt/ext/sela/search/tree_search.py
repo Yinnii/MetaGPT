@@ -345,7 +345,7 @@ class BaseTreeSearch:
     def best_child(self):
         raise NotImplementedError
 
-    async def expand(self, node: Node, max_children=5):
+    async def expand(self, node: Node, max_children=6):
         await node.expand(max_children, self.instruction_generator)
         if node not in self.children or not self.children[node]:
             self.children[node] = node.children
@@ -478,6 +478,7 @@ class BaseTreeSearch:
         def load_children_node(node: Node):
             mcts_logger.log("MCTS", f"Load node {node.id}'s child: {node.children}")
             if node.is_terminal() or not node.children:
+                # what if not is not terminal and node should have children?
                 return
             for child in node.children:
                 child.load_node()
