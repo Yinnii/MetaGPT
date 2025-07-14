@@ -1,6 +1,6 @@
 import json, requests
 
-from metagpt.ext.sela.utils import clean_json_from_rsp, load_data_config
+from metagpt.ext.sela.utils import clean_json_from_rsp, load_data_config, mcts_logger
 from metagpt.llm import LLM
 
 DATA_CONFIG = load_data_config()
@@ -21,19 +21,86 @@ DATASET_DESCRIPTION_CUSTOM_PROMPT = """
 # Dataset Description
 {dataset_description}
 """
+# konkretisiere mehr die prompts
 
-
-DATASET_INSIGHT_PROMPT_ONTORAG = """
+INFORMATION_BASED_INSIGHTS = """
+# Dataset Description
 {description}
 
-# Additional Information
+# Information
+{hyperparameter_settings_examples}
+
+You are a Machine Learning Expert tasked with analyzing a dataset. 
+You have the following settings from similar datasets that have been used in previous runs.
+Use only this information and dataset description to generate insights for different task types in the machine learning pipeline.
+Use the software in the information to generation model training insights.
+Use the hyperparametersettings defined in the examples to propose Hyperparameter optimization insights for the following task types: 
+
+# Format
+```json
+[
+    {{
+        "task_type": "EDA",
+        "insights": [
+            "insight1",
+            "insight2",
+            "insight3",
+        ]   
+    }},
+    {{
+        "task_type": "Data Preprocessing",
+        "insights": [
+            "insight1",
+            "insight2",
+            "insight3",
+        ]   
+    }},
+    {{
+        "task_type": "Feature Engineering",
+        "insights": [
+            "insight1",
+            "insight2",
+            "insight3",
+        ]   
+    }},
+    {{
+        "task_type": "Model Training",
+        "insights": [
+            "insight1",
+            "insight2",
+            "insight3",
+        ]   
+    }},
+    {{
+        "task_type": "Hyperparameter Optimization",
+        "insights": [
+            "insight1",
+            "insight2",
+            "insight3",
+        ]
+    }},
+]
+
+"""
+
+
+# add role
+DATASET_INSIGHT_PROMPT_ONTORAG = """
+# Role
+You are a Machine Learning Expert tasked with analyzing a dataset and proposing insights to improve model performance.
+You will be provided with a dataset description and examples of hyperparameter settings from previous runs. 
+First, use this information to generate insights for different task types in the machine learning pipeline.
+
+# Dataset Description
+{description}
+
+# Information
 {hyperparameter_settings_examples}
 
 # Instruction
-Propose insights to help improve the performance of the model on this dataset.
-The insights should be proposed based on the dataset description and the example settings with different task types.
+The insights should be proposed based on the dataset description and the information with different task types. 
+The first three insights of each task type should be based on the Information provided, while the last two insights should be based on your own knowledge and experience.
 Each task type should have at least 5 insights.
-Make sure each method is diverse enough and can be implemented separately.
 Be specific about models' choices, ensemble and tuning techniques, and preprocessing & feature engineering techniques.
 Your model choices should be advanced enough to be helpful.
 
@@ -71,6 +138,16 @@ Your model choices should be advanced enough to be helpful.
         ]   
     }},
     {{
+        "task_type": "Model Training",
+        "insights": [
+            "insight1",
+            "insight2",
+            "insight3",
+            ...
+            "insightN"
+        ]   
+    }},
+    {{
         "task_type": "Hyperparameter Tuning",
         "insights": [
             "insight1",
@@ -80,29 +157,21 @@ Your model choices should be advanced enough to be helpful.
             "insightN"
         ]
     }},
-    {{
-        "task_type": "Model Training",
-        "insights": [
-            "insight1",
-            "insight2",
-            "insight3",
-            ...
-            "insightN"
-        ]   
-    }}
 ]
 ```
 """
 
 INSIGHT_PROPOSAL_PROMPT_ONTORAG = """
-You are an AI assistant tasked with analyzing a machine learning solution and proposing new insights to improve its performance. Given the current solution code and development score, suggest innovative approaches to enhance the model.
+You are an AI assistant tasked with analyzing a machine learning solution and proposing new insights to improve its performance. 
+Given the current solution code and development score, suggest innovative approaches to enhance the model.
 
 Current Solution Code:
 {solution_code}
 
 Development Score: {dev_score}
 
-Based on this information, propose 3-5 new insights across different aspects of the machine learning pipeline (Data Preprocessing, Feature Engineering, and Model Training). Your insights should be specific, actionable, and have the potential to improve the model's performance.
+Based on this information, propose 3-5 new insights across different aspects of the machine learning pipeline (Data Preprocessing, Feature Engineering, Model Training and Hyperparameter Optimization). 
+Your insights should be specific, actionable, and have the potential to improve the model's performance.
 
 Please format your response as a JSON array with the following structure:
 [
@@ -122,14 +191,14 @@ Please format your response as a JSON array with the following structure:
         ]
     }},
     {{
-        "task_type": "Hyperparameter Tuning",
+        "task_type": "Model Training",
         "insights": [
             "insight1",
             "insight2"
         ]
     }},
     {{
-        "task_type": "Model Training",
+        "task_type": "Hyperparameter Optimization",
         "insights": [
             "insight1",
             "insight2"
@@ -149,7 +218,7 @@ KEY_DATASET_FEATURES = [
     "NumberOfSymbolicFeatures",
 ]
 
-TASK_TO_ID = {"EDA": 1, "Data Preprocessing": 2, "Feature Engineering": 3, "Hyperparameter Tuning":4, "Model Training": 5, "Model Evaluation": 6}
+TASK_TO_ID = {"EDA": 1, "Data Preprocessing": 2, "Feature Engineering": 3, "Model Training": 4, "Hyperparameter Tuning":5, "Model Evaluation": 6}
 
 
 class OntoRAGSolutionDesigner:
@@ -167,15 +236,25 @@ class OntoRAGSolutionDesigner:
             description_prompt = DATASET_DESCRIPTION_CUSTOM_PROMPT.format(dataset_description=dataset_info)
 
         try:
-            url = "http://localhost:6666/retrieve_parameters"
+            url = "http://localhost:6666/retrieve_runs"
             payload = {"query": description_prompt}
             examples = requests.post(url, json=payload).json().get("message", "No examples found.")
+
+            context0 = INFORMATION_BASED_INSIGHTS.format(
+                description=description_prompt, 
+                hyperparameter_settings_examples=examples
+            )
+
+            insights0 = await llm.aask(context0)
+            
+            mcts_logger.info(f"Retrieved first insight example: {insights0}")
+
         except Exception as e:
             print(f"Error retrieving parameters: {e}")
             examples = "No examples found. Please provide hyperparameter settings manually."
         
         context = DATASET_INSIGHT_PROMPT_ONTORAG.format(description=description_prompt, 
-                                                        hyperparameter_settings_examples=examples)
+                                                        hyperparameter_settings_examples=insights0)
         rsp = await llm.aask(context)
         rsp = clean_json_from_rsp(rsp)
         analysis_pool = self.process_analysis_pool(json.loads(rsp))
