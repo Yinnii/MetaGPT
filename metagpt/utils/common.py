@@ -279,8 +279,7 @@ class CodeParser:
         if match:
             code = match.group(1)
         else:
-            logger.error(f"{pattern} not match following text:")
-            logger.error(text)
+            logger.error(f"{pattern} not match text")
             # raise Exception
             return text  # just assume original text is code
         return code
