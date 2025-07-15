@@ -3,21 +3,28 @@ from __future__ import annotations
 import asyncio, re, json
 
 from metagpt.context import Context
+from metagpt.actions.di.write_analysis_code import WriteAnalysisCode
 from metagpt.actions.mle.write_ml_code import WriteMLCode
 from metagpt.actions.mle.run_ml_code import RunMLCode
 from metagpt.logs import logger
 from metagpt.roles import Role
 from metagpt.schema import Message
 
+from metagpt.prompts.mle.write_ml_code import (
+    REFLECT_PROMPT
+)
 
 class MachineLearningExpert(Role):
     name: str = "Malex"
     profile: str = "MachineLearningExpert"
+    max_react_loop: int = 3  # used here to reflect
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.set_actions([WriteMLCode, RunMLCode])
+        self.set_actions([WriteMLCode, RunMLCode] * self.max_react_loop) 
         self._set_react_mode(react_mode="by_order", max_react_loop=5)
+        self.count = 0  # used to count the number of react loops
+        self.finished = False
 
     async def _act(self) -> Message:
       logger.info(f"{self._setting}: to do {self.rc.todo}({self.rc.todo.name})")
@@ -27,19 +34,44 @@ class MachineLearningExpert(Role):
 
       msg = self.get_memories(k=1)[0]  # find the most k recent messages
 
+      if self.finished:
+        logger.info("Finished all tasks, exiting.")
+        return msg
+
       if todo.name == "WriteMLCode":
-        msg.content = await self._parse_configuration(msg)
-        result = await todo.run(msg.content)
-        msg = Message(content=result, role=self.profile, cause_by=type(todo))
+        if msg.role != "assistant":
+          msg.content = await self._parse_configuration(msg)
+        result = await todo.run(msg.content, working_memory=self.rc.memory.get())
+        msg = Message(content=result, role="assistant", cause_by=type(todo))
         self.rc.memory.add(msg)
+        
       elif todo.name == "RunMLCode":
-        print(f"Running ML code for dataset: {self.dataset}")
         result = await todo.run(msg.content, dataset=self.dataset)
-        msg = Message(content=result, role=self.profile, cause_by=type(todo))
-        self.rc.memory.add(msg)
-
-      return msg
-
+        msg = Message(content=result, role="assistant", cause_by=type(todo))
+        logger.info(f"RunMLCode result: {result}")
+        # if message contains error, reflect on it by writing a new code
+        if "Error" in result or "error" in result.lower():
+            reflect_msg = REFLECT_PROMPT.format(
+                feedback = result,
+            )
+            msg.content = reflect_msg
+            msg.role = "assistant"
+            msg.cause_by = "RunMLCode"
+            self.count += 1
+            if self.count > self.max_react_loop: 
+                msg.content = "Error running the configuration and create a model."
+                self.finished = True
+                self.rc.memory.add(msg)
+                return msg
+               
+        else:
+            msg.content = f"Model trained successfully: {result}."
+            msg.role = "assistant"
+            msg.cause_by = "RunMLCode"
+            self.rc.memory.add(msg)
+            self.finished = True
+            return msg
+    
     # parse incoming message and extract the json configuration
     async def _parse_configuration(self, message: Message) -> str:
         message = re.search(r'(\{.*\})', message.content, re.DOTALL)

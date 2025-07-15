@@ -4,9 +4,7 @@ The code should be efficient, well-structured, and include necessary imports and
 
 ML_PROMPT = """You are given a task to write Python code for a machine learning model. 
 # User requirements
-datasets_dir: "/home/yin/Projects/MetaGPT/metagpt/ext/sela/SELA_datasets" # path to the datasets directory
-work_dir: ../../../workspace # path to the workspace directory
-role_dir: storage/SELA # path to the role directory
+datasets_dir: "/home/yin/Projects/MetaGPT/metagpt/ext/sela/SELA_datasets/{{dataset_name}}" # path to the datasets directory
 
 # Configuration
 {configuration}
@@ -16,7 +14,7 @@ Please follow the specifications below:
 3. The data path is specified in the user requirements.
 2. Use the model type specified in the configuration.
 4. Use the hyperparameters specified in the configuration.
-5. Train and test the model using the datasets in the datasets directory.
+5. Train and test the model using the datasets in the datasets directory. The dataset is always name train.csv
 6. Save the model as a pickle file in the working directory.
 
 # Output
@@ -73,14 +71,13 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score
  
 # Constants
-DATASETS_DIR = "/home/yin/Projects/MetaGPT/metagpt/ext/sela/SELA_datasets"
 DATASET_NAME = "creditg"
-WORK_DIR = "/home/yin/Projects/MetaGPT/metagpt/ext/sela/SELA_datasets/" + DATASET_NAME
 TARGET_COLUMN = "class"
+DATASETS_DIR = "/home/yin/Projects/MetaGPT/metagpt/ext/sela/SELA_datasets" + DATASET_NAME 
 
 def load_data(dataset_name):
     # Load the dataset from the specified directory
-    data_path = os.path.join(DATASETS_DIR, f"{{dataset_name}}/raw/train.csv")
+    data_path = os.path.join(DATASETS_DIR, f"/train.csv") # DO NOT ADJUST THE FILENAME
     data = pd.read_csv(data_path)
     return data
 
@@ -122,10 +119,10 @@ def evaluate_model(model, pca, X_test, y_test):
 
 def save_model(model, pca):
     # Ensure the workspace directory exists
-    os.makedirs(WORK_DIR, exist_ok=True)
-    with open(os.path.join(WORK_DIR, 'random_forest_model.pkl'), 'wb') as f:
+    os.makedirs(DATASET_DIR, exist_ok=True)
+    with open(os.path.join(DATSET_DIR, 'random_forest_model.pkl'), 'wb') as f:
         pickle.dump((model, pca), f)
-    print(f"Model saved to {{os.path.join(WORK_DIR, 'random_forest_model.pkl')}}")
+    print(f"Model saved to {{os.path.join(DATASET_DIR, 'random_forest_model.pkl')}}")
 
 def main():
     # Load and preprocess data
@@ -146,5 +143,21 @@ def main():
 
 if __name__ == "__main__":
     main()
+```
+"""
+
+REFLECT_PROMPT = """You are a machine learning engineer.
+Your task is to reflect on the previously created code and improve it based on the feedback given.
+The structure should stay the same, just improve the code based on the feedback. 
+Make sure the dataset directory is correct and is in the following format:
+/home/yin/Projects/MetaGPT/metagpt/ext/sela/SELA_datasets/{{dataset_name}}/raw/train.csv
+
+# Feedback
+{feedback}
+
+# Output
+Output the improved code in the following format:
+```python
+your code
 ```
 """

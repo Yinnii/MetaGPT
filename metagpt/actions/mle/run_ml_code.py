@@ -19,13 +19,23 @@ class RunMLCode(Action):
           code_text: str, 
           dataset: str
         ) -> str:
-        parsed_code = CodeParser.parse_code(block=None, text=code_text)
-        path = self._store_code(parsed_code, dataset)
+        try:
+          parsed_code = CodeParser.parse_code(block=None, text=code_text)
+          path = self._store_code(parsed_code, dataset)
+        except Exception as e:
+          logger.error(f"Error parsing or storing ML code: {e}")
+          path = self._store_code(code_text, dataset)
 
-        result = subprocess.run(["python3", path], capture_output=True, text=True)
-        code_result = result.stdout
+        code_result = await self.execute_code(path)
         return code_result
     
+    async def execute_code(self, path: str):
+        result = subprocess.run(["python3", path], capture_output=True, text=True)
+        if result.returncode != 0:
+            return result.stderr
+        return result.stdout
+
+
 
   
     
