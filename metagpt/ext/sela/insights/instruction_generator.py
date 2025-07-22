@@ -137,8 +137,7 @@ class InstructionGenerator:
         return added_insights
 
     async def generate_solutions_from_scratch(self, dataset_info, dataset_name):
-        insight_pool = await self.proposer.generate_solutions(dataset_info, dataset_name, save_analysis_pool=False)
-        mcts_logger.info(f"Generated {insight_pool} insights from scratch for dataset {dataset_name}")
+        insight_pool = await self.proposer.generate_solutions(dataset_info, dataset_name, save_analysis_pool=True)
         return insight_pool
 
     def add_insight(self, new_insights):

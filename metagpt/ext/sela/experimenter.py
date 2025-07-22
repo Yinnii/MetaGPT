@@ -71,7 +71,13 @@ class Experimenter(DataInterpreter):
         return f"Node-{self.node_id}"
 
     def get_next_instruction(self):
-        return self.planner.plan.tasks[self.start_task_id].instruction
+        mcts_logger.info(f"Plan length is {len(self.planner.plan.tasks)}")
+        mcts_logger.info(f"Start task ID is {self.start_task_id}")
+        try: 
+            return self.planner.plan.tasks[self.start_task_id].instruction
+        except IndexError:
+            mcts_logger.error(f"Start task ID {self.start_task_id} is out of range for tasks length {len(self.planner.plan.tasks)}")
+            return self.planner.plan.tasks[self.start_task_id - 1].instruction
 
     def change_next_instruction(self, new_instruction):
         if new_instruction is not None:

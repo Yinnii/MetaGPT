@@ -1,5 +1,6 @@
 import argparse
 import asyncio
+import datetime
 
 from metagpt.ext.sela.data.custom_task import get_mle_is_lower_better, get_mle_task_id
 from metagpt.ext.sela.runner.autogluon import GluonRunner
@@ -8,6 +9,7 @@ from metagpt.ext.sela.runner.custom import CustomRunner
 from metagpt.ext.sela.runner.mcts import MCTSRunner
 from metagpt.ext.sela.runner.random_search import RandomSearchRunner
 from metagpt.ext.sela.runner.runner import Runner
+from metagpt.ext.sela.utils import mcts_logger
 
 
 def get_args(cmd=True):
@@ -53,7 +55,7 @@ def get_mcts_args(parser):
     parser.set_defaults(external_eval=True)
     parser.add_argument("--eval_func", type=str, default="sela", choices=["sela", "mlebench"])
     parser.add_argument("--custom_dataset_dir", type=str, default=None)
-    parser.add_argument("--max_depth", type=int, default=4)
+    parser.add_argument("--max_depth", type=int, default=6)
 
 
 def get_rs_exp_args(parser):
@@ -91,7 +93,13 @@ async def main(args):
         runner = AutoSklearnRunner(args)
     else:
         raise ValueError(f"Invalid exp_mode: {args.exp_mode}")
+
+    start_time = datetime.datetime.now()
+    mcts_logger.info(f"Experiment started at {start_time}")
+
     await runner.run_experiment()
+
+
 
 
 if __name__ == "__main__":

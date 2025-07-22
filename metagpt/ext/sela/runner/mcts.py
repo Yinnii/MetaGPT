@@ -1,5 +1,5 @@
 import shutil
-
+import datetime
 from metagpt.ext.sela.evaluation.evaluation import (
     node_evaluate_score_mlebench,
     node_evaluate_score_sela,
@@ -37,6 +37,9 @@ class MCTSRunner(Runner):
         else:
             mcts = MCTS(root_node=None, max_depth=depth, use_fixed_insights=use_fixed_insights)
         best_nodes = await mcts.search(state=self.state, args=self.args)
+
+        mcts_logger.info(f"Search completed at {datetime.datetime.now()}")
+
         best_node = best_nodes["global_best"]
         dev_best_node = best_nodes["dev_best"]
         score_dict = best_nodes["scores"]

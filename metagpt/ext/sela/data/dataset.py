@@ -48,6 +48,7 @@ DI_INSTRUCTION = """
 4. You should perform transformations on train, dev, and test sets at the same time (it's a good idea to define functions for this and avoid code repetition).
 5. When scaling or transforming features, make sure the target column is not included.
 6. You could utilize dev set to validate and improve model training. {special_instruction}
+7. When optimizing hyperparameters, do not use best estimator or grid search, instead use one random setting.
 
 ## Saving Dev and Test Predictions
 1. Save the prediction results of BOTH the dev set and test set in `dev_predictions.csv` and `test_predictions.csv` respectively in the output directory. 
