@@ -204,3 +204,7 @@ Please format your response as a JSON array with the following structure:
     }}
 ]
 """
+
+MALEX_RUN_PROMPT = """ Write and run a python script to train the dataset with the following configuration: 
+{configuration}
+"""
