@@ -191,3 +191,5 @@ cov.xml
 *.csv
 metagpt/ext/sela/results/*
 *.json
+
+model_training.py
