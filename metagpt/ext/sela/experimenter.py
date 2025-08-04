@@ -74,9 +74,11 @@ class Experimenter(DataInterpreter):
         mcts_logger.info(f"Plan length is {len(self.planner.plan.tasks)}")
         mcts_logger.info(f"Start task ID is {self.start_task_id}")
         try: 
-            return self.planner.plan.tasks[self.start_task_id].instruction
-        except IndexError:
-            mcts_logger.error(f"Start task ID {self.start_task_id} is out of range for tasks length {len(self.planner.plan.tasks)}")
+            instruction = self.planner.plan.tasks[self.start_task_id].instruction
+            mcts_logger.info(f"Next instruction is: {instruction}")
+            return instruction
+        except Exception as e:
+            mcts_logger.error(f"Error occurred while getting next instruction: {e}")
             return self.planner.plan.tasks[self.start_task_id - 1].instruction
 
     def change_next_instruction(self, new_instruction):
@@ -199,3 +201,6 @@ class Experimenter(DataInterpreter):
             self.publish_message(rsp)
             return rsp
         return await super().run(with_message)
+
+
+# after saving state, retrieve settings from notebook and store it in neo4j (use another agent)

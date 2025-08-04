@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio, re, json
+from json_repair import repair_json
 
 from metagpt.context import Context
 from metagpt.actions.di.write_analysis_code import WriteAnalysisCode
@@ -19,10 +20,11 @@ class MachineLearningExpert(Role):
     profile: str = "MachineLearningExpert"
     max_react_loop: int = 3  # used here to reflect
 
-    def __init__(self, **kwargs):
+    def __init__(self, dataset, **kwargs):
         super().__init__(**kwargs)
         self.set_actions([WriteMLCode, RunMLCode] * self.max_react_loop) 
         self._set_react_mode(react_mode="by_order", max_react_loop=5)
+        self.dataset = dataset
         self.count = 0  # used to count the number of react loops
         self.finished = False
 
@@ -40,6 +42,7 @@ class MachineLearningExpert(Role):
 
       if todo.name == "WriteMLCode":
         if msg.role != "assistant":
+          logger.info(f"Message is {msg}")
           msg.content = await self._parse_configuration(msg)
         result = await todo.run(msg.content, working_memory=self.rc.memory.get())
         msg = Message(content=result, role="assistant", cause_by=type(todo))
@@ -58,14 +61,15 @@ class MachineLearningExpert(Role):
             msg.role = "assistant"
             msg.cause_by = "RunMLCode"
             self.count += 1
-            if self.count > self.max_react_loop: 
+            if self.count > self.max_react_loop:
                 msg.content = "Error running the configuration and create a model."
                 self.finished = True
                 self.rc.memory.add(msg)
                 return msg
                
         else:
-            msg.content = f"Model trained successfully: {result}."
+            result_dict = await self._parse_result_to_dict(result)
+            msg.content = json.dumps(result_dict, indent=4)
             msg.role = "assistant"
             msg.cause_by = "RunMLCode"
             self.rc.memory.add(msg)
@@ -78,16 +82,18 @@ class MachineLearningExpert(Role):
         
         if message:
             json_str = message.group(1)
+            json_str = repair_json(json_str)  # repair the json string if needed
+            logger.info(f"Extracted JSON configuration: {json_str}")
             try:
                 configuration = json.loads(json_str)
 
-                # get dataset name
-                try: 
-                  dataset = configuration.get("run", {}).get("dataset", {}).get("dataset_name", "")
-                except Exception as e:
-                  dataset = configuration.get("dataset", {}).get("dataset_name", "")
+                # # get dataset name
+                # try: 
+                #   dataset = configuration.get("run", {}).get("dataset", {}).get("dataset_name", "")
+                # except Exception as e:
+                #   dataset = configuration.get("dataset", {}).get("dataset_name", "")
 
-                self.dataset = dataset
+                # self.dataset = dataset
 
                 return json.dumps(configuration, indent=4)
             except json.JSONDecodeError as e:
@@ -96,39 +102,64 @@ class MachineLearningExpert(Role):
         else:
             logger.error("No JSON configuration found in the message content.")
             raise ValueError("No JSON configuration found in the message content.")
+        
+    async def _parse_result_to_dict(self, result: str) -> dict:
+        try:
+            pattern = r"Training Accuracy: ([\d.]+).*?Model Accuracy: ([\d.]+).*?Model saved to (.+)"
+            match = re.search(pattern, result, re.DOTALL)
+            if match:
+                training_accuracy = float(match.group(1))
+                model_accuracy = float(match.group(2))
+                model_path = match.group(3).strip()
 
-async def main():
-    msg = '''Write and run a python script to train the dataset with the following configuration:
-            {
-            "run": {
-                "name": "run48443",
-                "dataset": {
-                    "dataset_name": "mfeatfactors",
-                    "qualities": {
-                        "description": "One of a set of 6 datasets describing features of handwritten numerals (0 - 9) extracted from a collection of Dutch utility maps."
-                    }
-                },
-                "flow": {
-                    "implementation": "wekaBaggingLMT48443",
-                    "software": "Weka48443",
-                    "hyperparametersettings": {
-                        "num_slots": "1",
-                        "W": "weka.classifiers.trees.LMT",
-                        "S": "1",
-                        "P": "100",
-                        "I": "10"
-                    }
-                },
-                "evaluation": {
-                    "measure": "predictive_accuracy",
-                    "value": 0.984848
+                return {
+                    "train_score": training_accuracy,
+                    "test_score": model_accuracy,
+                    "model_path": model_path
                 }
-              }
-            }
-          '''
-    context = Context()
-    role = MachineLearningExpert(context=context)
-    result = await role.run(msg)
-    logger.info(result)
+        except Exception as e:
+            logger.error(f"Failed to parse result: {e}")
+            # TODO: maybe the score is not in the correct order, what to do then?
+            try:
+                score = re.search(r"(\d+\.\d+)", result)
+                if score:
+                    return {"train_score": float(score.group(1)), "test_score": float(score.group(1))}
+            except Exception as e:
+                logger.error(f"Failed to retrieve score from result: {e}")
+                return {"train_score": 0.0, "test_score": 0.0}
 
-asyncio.run(main())
+# async def main():
+#     msg = '''Write and run a python script to train the dataset with the following configuration:
+#             {
+#             "run": {
+#                 "name": "run48443",
+#                 "dataset": {
+#                     "dataset_name": "mfeatfactors",
+#                     "qualities": {
+#                         "description": "One of a set of 6 datasets describing features of handwritten numerals (0 - 9) extracted from a collection of Dutch utility maps."
+#                     }
+#                 },
+#                 "flow": {
+#                     "implementation": "wekaBaggingLMT48443",
+#                     "software": "Weka48443",
+#                     "hyperparametersettings": {
+#                         "num_slots": "1",
+#                         "W": "weka.classifiers.trees.LMT",
+#                         "S": "1",
+#                         "P": "100",
+#                         "I": "10"
+#                     }
+#                 },
+#                 "evaluation": {
+#                     "measure": "predictive_accuracy",
+#                     "value": 0.984848
+#                 }
+#               }
+#             }
+#           '''
+#     context = Context()
+#     role = MachineLearningExpert(context=context, dataset="mfeatfactors")
+#     result = await role.run(msg)
+#     logger.info(result)
+
+# asyncio.run(main())

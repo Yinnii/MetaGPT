@@ -4,7 +4,7 @@ The code should be efficient, well-structured, and include necessary imports and
 
 ML_PROMPT = """You are given a task to write Python code for a machine learning model. 
 # User requirements
-datasets_dir: "/home/yin/Projects/MetaGPT/metagpt/ext/sela/SELA_datasets/{{dataset_name}}" # path to the datasets directory
+datasets_dir: "/home/yin/Projects/MetaGPT/metagpt/ext/sela/SELA_datasets/{{dataset_name}}/raw/" # path to the datasets directory
 
 # Configuration
 {configuration}
@@ -73,7 +73,7 @@ from sklearn.metrics import accuracy_score
 # Constants
 DATASET_NAME = "creditg"
 TARGET_COLUMN = "class"
-DATASETS_DIR = "/home/yin/Projects/MetaGPT/metagpt/ext/sela/SELA_datasets" + DATASET_NAME 
+DATASETS_DIR = "/home/yin/Projects/MetaGPT/metagpt/ext/sela/SELA_datasets/" + DATASET_NAME + "/raw/"
 
 def load_data(dataset_name):
     # Load the dataset from the specified directory

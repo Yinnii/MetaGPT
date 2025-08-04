@@ -20,7 +20,7 @@ class RunMLCode(Action):
           dataset: str
         ) -> str:
         try:
-          parsed_code = CodeParser.parse_code(block=None, text=code_text)
+          parsed_code = CodeParser.parse_code(block=None, text=code_text, lang="python")
           path = self._store_code(parsed_code, dataset)
         except Exception as e:
           logger.error(f"Error parsing or storing ML code: {e}")
