@@ -10,6 +10,7 @@ import yaml
 from sklearn.model_selection import train_test_split
 
 from metagpt.ext.sela.insights.solution_designer import SolutionDesigner
+from metagpt.ext.sela.insights.solution_designer_ontorag import OntoRAGSolutionDesigner
 from metagpt.ext.sela.utils import DATA_CONFIG, mcts_logger
 
 BASE_USER_REQUIREMENT = """
@@ -167,7 +168,8 @@ def generate_di_instruction(output_dir, special_instruction):
     )
     return additional_instruction
 
-
+# !!! Initialization of the plan and what data should be used for the tasks. 
+# It formats the necessary prompts and additional instructions o the given task.
 def generate_task_requirement(task_name, data_config, is_di=True, special_instruction=None):
     user_requirement = get_user_requirement(task_name, data_config)
     split_dataset_path = get_split_dataset_path(task_name, data_config)
@@ -354,7 +356,7 @@ class OpenMLExpDataset(ExpDataset):
         return dataset_info
 
 
-async def process_dataset(dataset, solution_designer: SolutionDesigner, save_analysis_pool, datasets_dict):
+async def process_dataset(dataset, solution_designer: OntoRAGSolutionDesigner, save_analysis_pool, datasets_dict):
     if save_analysis_pool:
         await solution_designer.generate_solutions(dataset.get_dataset_info(), dataset.name)
     dataset_dict = create_dataset_dict(dataset)
@@ -378,7 +380,7 @@ if __name__ == "__main__":
     force_update = args.force_update
     save_analysis_pool = args.save_analysis_pool
     datasets_dict = {"datasets": {}}
-    solution_designer = SolutionDesigner()
+    solution_designer = OntoRAGSolutionDesigner()
     for dataset_id in OPENML_DATASET_IDS:
         openml_dataset = OpenMLExpDataset("", datasets_dir, dataset_id, force_update=force_update)
         asyncio.run(process_dataset(openml_dataset, solution_designer, save_analysis_pool, datasets_dict))

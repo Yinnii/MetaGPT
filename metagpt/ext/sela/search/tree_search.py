@@ -22,6 +22,8 @@ from metagpt.ext.sela.utils import get_exp_pool_path, load_execute_notebook, mct
 from metagpt.tools.tool_recommend import ToolRecommender
 from metagpt.utils.common import read_json_file
 
+from metagpt.ext.sela.machine_learning_expert import MachineLearningExpert
+from metagpt.context import Context
 
 def initialize_di_root_node(state: dict, reflection: bool = True):
     """
@@ -111,6 +113,7 @@ def create_initial_state(task: str, start_task_id: int, data_config: dict, args)
         "custom_dataset_dir": args.custom_dataset_dir,
     }
     os.makedirs(initial_state["node_dir"], exist_ok=True)
+    mcts_logger.info(f"Initial state created: {initial_state}")
     return initial_state
 
 
@@ -124,7 +127,7 @@ class Node:
     parent = None
 
     def __init__(
-        self, parent=None, state: dict = None, action: str = None, value: float = 0, max_depth: int = 4, **kwargs
+        self, parent=None, state: dict = None, action: str = None, value: float = 0, max_depth: int = 5, **kwargs
     ):
         self.state = state
         self.action = action
@@ -222,7 +225,7 @@ class Node:
         role.start_task_id = self.state["start_task_id"]
         role.state_saved = False
         role.change_next_instruction(self.action)
-        mcts_logger.log("MCTS", f"Saving new role: {role.node_id}")
+        mcts_logger.info("MCTS", f"Saving new role: {role.node_id}")
         role = role.model_copy()
         role.save_state(static_save=True)
 
@@ -231,16 +234,27 @@ class Node:
             return
         role = self.load_role()
         original_instruction = role.get_next_instruction()
-        insights = await instruction_generator.generate_new_instructions(
+        mcts_logger.info(f"Expanding node {self.id} with action: {original_instruction}")
+        # get analysis pool insights and compare with the original instruction 
+
+        insights, exist_scores = await instruction_generator.generate_new_instructions(
             task_id=role.start_task_id + 1,
             original_instruction=original_instruction,
             max_num=max_children,
         )
+
+        mcts_logger.info(f"Scores from insights: {exist_scores}")
         new_state = self.state.copy()
         new_state["start_task_id"] += 1
-        for insight in insights:
+        for i, insight in enumerate(insights):
             new_role = role.model_copy()
             node = Node(parent=self, state=new_state, action=insight, value=0)
+
+            # if a score already has been retrieved, use it in the node for warm start
+            if exist_scores[i] is not None:
+                exist_scores[i]['score'] = exist_scores[i]['test_score']
+                node.update(reward=exist_scores[i])
+
             node.save_new_role(new_role)
             self.add_child(node)
 
@@ -295,14 +309,14 @@ class Node:
                 self.raw_reward = score_dict
                 run_finished = True
             except TimeoutException as e:
-                mcts_logger.log("MCTS", f"Role-level timeout: {e}")
+                mcts_logger.info("MCTS", f"Role-level timeout: {e}")
                 break
             except Exception as e:
-                mcts_logger.log("MCTS", f"Error in running the role: {e}")
+                mcts_logger.info("MCTS", f"Error in running the role: {e}")
                 num_runs += 1
 
         if not run_finished:
-            mcts_logger.log("MCTS", f"Role {role.node_id} failed to run")
+            mcts_logger.info("MCTS", f"Role {role.node_id} failed to run")
             if self.state["low_is_better"]:
                 score_dict = {"test_score": np.inf, "dev_score": np.inf, "score": np.inf}
             else:
@@ -339,25 +353,29 @@ class BaseTreeSearch:
 
     def select(self, node: Node):
         node = self.best_child()
-        mcts_logger.log("MCTS", f"Selected node id: {node.id}")
+        mcts_logger.info("MCTS", f"Selected node id: {node.id}")
         return node
 
     def best_child(self):
         raise NotImplementedError
 
-    async def expand(self, node: Node, max_children=6):
+    async def expand(self, node: Node, max_children=4):
         await node.expand(max_children, self.instruction_generator)
         if node not in self.children or not self.children[node]:
             self.children[node] = node.children
+        mcts_logger.info("MCTS", f"Expanded node {node.id} with {len(node.children)} children and children {node.children}")
         return node.children
 
     async def simulate(self, node: Node, role=None):
         "Returns the reward for a random simulation (to completion) of `node`"
-        mcts_logger.log("MCTS", f"Start simulating node {node.id}:")
+        mcts_logger.info("MCTS", f"Simulating node {node.id} with action: {node.action}")
+        mcts_logger.info("MCTS", f"Start simulating node {node.id}:")
         while node.children:
+            mcts_logger.info("MCTS", f"Node {node.id} has {len(node.children)} children, selecting one randomly")
             node = np.random.choice(node.children)
+            mcts_logger.info("MCTS", f"Selected child node {node.id} with action: {node.action}")
         reward, result_dict = await node.run_node(role)
-        mcts_logger.log("MCTS", f"Simulated node's reward: {reward}")
+        mcts_logger.info("MCTS", f"Simulated node's reward: {reward}, result: {result_dict}")
         # TODO: add new insights
         return reward
 
@@ -431,8 +449,8 @@ class BaseTreeSearch:
         tree_loaded = False
         if load_tree:
             tree_loaded = self.load_tree()
-            mcts_logger.log("MCTS", f"Number of simulations: {self.get_num_simulations()}")
-            mcts_logger.log("MCTS", f"Tree loaded: {tree_loaded}")
+            mcts_logger.info("MCTS", f"Number of simulations: {self.get_num_simulations()}")
+            mcts_logger.info("MCTS", f"Tree loaded: {tree_loaded}")
 
         if not tree_loaded:
             rollouts -= 2  # 2 rollouts for the initial tree
@@ -448,16 +466,16 @@ class BaseTreeSearch:
         else:
             root = self.root_node
             self.load_node_order()
-
+            
         for _ in range(rollouts):  # number of rollouts
-            mcts_logger.log("MCTS", f"Start the next rollout {_+1}")
+            mcts_logger.info("MCTS", f"Start the next rollout {_+1}")
             node = self.select(root)
             if node.is_terminal():
                 if node.raw_value == 0:
                     reward = await self.simulate(node)
                 else:
                     reward = {"test_score": node.raw_value, "score": node.raw_reward["score"]}
-                mcts_logger.log("MCTS", f"Terminal node's reward: {reward}")
+                mcts_logger.info("MCTS", f"Terminal node's reward: {reward}")
                 self.backpropagate(node, reward)
             else:
                 node, reward = await self.expand_and_simulate(node)
@@ -469,14 +487,15 @@ class BaseTreeSearch:
         # Expand and randomly select a child node, then simulate it
         if node.visited > 0:
             children = await self.expand(node)
+            mcts_logger.info("MCTS", f"Expanded node {node.id} with {len(children)} children")
             node = np.random.choice(children)
         reward = await self.simulate(node)
         self.backpropagate(node, reward)
         return node, reward
-
+    
     def load_tree(self):
         def load_children_node(node: Node):
-            mcts_logger.log("MCTS", f"Load node {node.id}'s child: {node.children}")
+            mcts_logger.info("MCTS", f"Load node {node.id}'s child: {node.children}")
             if node.is_terminal() or not node.children:
                 # what if not is not terminal and node should have children?
                 return

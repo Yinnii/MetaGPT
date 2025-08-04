@@ -116,6 +116,7 @@ class InstructionGenerator:
     async def generate_new_instructions(self, task_id, original_instruction, max_num, ext_info=None):
         data = self.insight_pool
         new_instructions = []
+        exist_scores = []
         if len(data) == 0:
             mcts_logger.log("MCTS", f"No insights available for task {task_id}")
             # return [original_instruction]  # Return the original instruction if no insights are available
@@ -125,11 +126,18 @@ class InstructionGenerator:
             else:
                 item = data[i]
                 insights = item["Analysis"]
-            new_instruction = await InstructionGenerator.generate_new_instruction(
-                original_instruction, insights, ext_info
-            )
+                score = item["Score"]
+                if score['test_score'] > 0: 
+                    exist_scores.append(score)
+                    new_instruction = original_instruction
+                else:
+                    exist_scores.append(None)
+                    new_instruction = await InstructionGenerator.generate_new_instruction(
+                        original_instruction, insights, ext_info
+                    )
+
             new_instructions.append(new_instruction)
-        return new_instructions
+        return new_instructions, exist_scores
 
     async def propose_new_insights(self, solution, score):
         new_insights = await self.proposer.propose_insights(solution, score)
