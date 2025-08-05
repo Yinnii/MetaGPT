@@ -2,10 +2,25 @@ import subprocess
 from metagpt.actions import Action
 from metagpt.utils.common import CodeParser
 from metagpt.logs import logger
+import os
+import psycopg2
+from datetime import datetime
+
+POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "openml_password")
+
+connection = psycopg2.connect(
+    dbname="openml",
+    user="postgres",
+    password=POSTGRES_PASSWORD,
+    host="yin-postgres",
+    port="5434"
+)
+cursor = connection.cursor()
 
 class RunMLCode(Action):
     name: str = "RunMLCode"
     data_dir: str = "/home/yin/Projects/MetaGPT/metagpt/ext/sela/SELA_datasets"
+    success: bool = False
 
     def _store_code(self, code_text: str, dataset: str):
         path = f"{self.data_dir}/{dataset}/model_training.py"
@@ -27,12 +42,24 @@ class RunMLCode(Action):
           path = self._store_code(code_text, dataset)
 
         code_result = await self.execute_code(path)
+
+        if self.success:
+            cursor.execute("""CREATE TABLE IF NOT EXISTS dataset_model_training (
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                dataset VARCHAR(255),
+                code BYTEA
+            )""")
+            cursor.execute("""INSERT INTO dataset_model_training (dataset, code, created_at) VALUES (%s, %s, %s)""", (dataset, psycopg2.Binary(code_text), datetime.now()))
+            connection.commit()
+
         return code_result
     
     async def execute_code(self, path: str):
         result = subprocess.run(["python3", path], capture_output=True, text=True)
         if result.returncode != 0:
             return result.stderr
+        self.success = True
+        logger.info(f"Code executed successfully: {result.stdout}")
         return result.stdout
 
 

@@ -20,11 +20,12 @@ class MachineLearningExpert(Role):
     profile: str = "MachineLearningExpert"
     max_react_loop: int = 3  # used here to reflect
 
-    def __init__(self, dataset, **kwargs):
+    def __init__(self, dataset, target_column, **kwargs):
         super().__init__(**kwargs)
         self.set_actions([WriteMLCode, RunMLCode] * self.max_react_loop) 
         self._set_react_mode(react_mode="by_order", max_react_loop=5)
         self.dataset = dataset
+        self.target_column = target_column
         self.count = 0  # used to count the number of react loops
         self.finished = False
 
@@ -44,7 +45,7 @@ class MachineLearningExpert(Role):
         if msg.role != "assistant":
           logger.info(f"Message is {msg}")
           msg.content = await self._parse_configuration(msg)
-        result = await todo.run(msg.content, working_memory=self.rc.memory.get())
+        result = await todo.run(msg.content, working_memory=self.rc.memory.get(), dataset_name=self.dataset, target_column=self.target_column)
         msg = Message(content=result, role="assistant", cause_by=type(todo))
         self.rc.memory.add(msg)
         
@@ -56,6 +57,8 @@ class MachineLearningExpert(Role):
         if "Error" in result or "error" in result.lower():
             reflect_msg = REFLECT_PROMPT.format(
                 feedback = result,
+                dataset_name = self.dataset,
+                target_column = self.target_column
             )
             msg.content = reflect_msg
             msg.role = "assistant"
