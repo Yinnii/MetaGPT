@@ -61,6 +61,7 @@ Here is an example of debugging with reflection.
 
 [context]
 {context}
+The target column is {target_column}.
 
 [previous impl]
 {previous_impl}

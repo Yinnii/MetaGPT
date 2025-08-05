@@ -58,8 +58,12 @@ class OntoRAGSolutionDesigner:
             runs = examples.get("runs", [])
         elif isinstance(examples, list):
             runs = examples
-        
-        results = await self.retrieve_run_results(runs, dataset_name)
+
+        dataset_name = dataset_info.get("dataset_name", dataset_name)
+        target_name = dataset_info.get("target_col", "class")
+        mcts_logger.info(f"Dataset is {dataset_name} with target name: {target_name}")
+
+        results = await self.retrieve_run_results(runs, dataset_name, target_name)
 
         predefined_insights = self.create_pre_insights(examples, results)
 
@@ -86,14 +90,14 @@ class OntoRAGSolutionDesigner:
         return analysis_pool
 
     # Retrieve the runs from the ontologyRAG and iterate over the runs to retrieve the results for each run with the configurations
-    async def retrieve_run_results(self, runs, dataset_name: str):
+    async def retrieve_run_results(self, runs, dataset_name: str, target_name: str = "class"):
         results = []
         for run in runs: 
             context = Context()
-            if dataset_name is None:
-                dataset_name = run.get("dataset").get("dataset_name")
+            # if dataset_name is None:
+            #     dataset_name = run.get("dataset").get("dataset_name")
             mcts_logger.info(f"Running configuration: {run} for dataset: {dataset_name}")
-            malex = MachineLearningExpert(context=context, dataset=dataset_name)
+            malex = MachineLearningExpert(context=context, dataset=dataset_name, target_column=target_name)
             query = MALEX_RUN_PROMPT.format(configuration=run)
             mcts_logger.info(f"Running query: {query}")
             result = await malex.run(query)

@@ -20,12 +20,13 @@ class WriteMLCode(Action):
     
     name: str = "WriteMLCode"
 
-    async def _debug_with_reflection(self, context: list[Message], working_memory: list[Message]):
+    async def _debug_with_reflection(self, context: list[Message], working_memory: list[Message], target_column: str):
         reflection_prompt = REFLECTION_PROMPT.format(
             debug_example=DEBUG_REFLECTION_EXAMPLE,
             context=context,
             previous_impl=working_memory,
-        )
+            target_column = target_column
+            )
 
         rsp = await self._aask(reflection_prompt, system_msgs=[REFLECTION_SYSTEM_MSG])
         # reflection = json.loads(CodeParser.parse_code(block=None, text=rsp))
@@ -38,10 +39,14 @@ class WriteMLCode(Action):
         configuration: str,
         working_memory: list[Message] = None,
         use_reflection: bool = False,
+        target_column: str = "class",
+        dataset_name: str = None,
         **kwargs,
     ) -> str:
 
         structual_prompt = ML_PROMPT.format(
+            dataset_name=dataset_name,
+            target_column=target_column,
             configuration=configuration
         )
 
@@ -50,7 +55,7 @@ class WriteMLCode(Action):
 
         # LLM call
         if use_reflection:
-            code = await self._debug_with_reflection(context=context, working_memory=working_memory)
+            code = await self._debug_with_reflection(context=context, working_memory=working_memory, target_column=target_column)
         else:
             rsp = await self.llm.aask(context, system_msgs=[ML_SYSTEM_MESSAGE], **kwargs)
             code = CodeParser.parse_code(block=None, text=rsp)

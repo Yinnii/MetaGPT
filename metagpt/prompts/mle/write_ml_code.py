@@ -4,7 +4,8 @@ The code should be efficient, well-structured, and include necessary imports and
 
 ML_PROMPT = """You are given a task to write Python code for a machine learning model. 
 # User requirements
-datasets_dir: "/home/yin/Projects/MetaGPT/metagpt/ext/sela/SELA_datasets/{{dataset_name}}/raw/" # path to the datasets directory
+TARGET_COLUMN = {target_column}
+datasets_dir: "/home/yin/Projects/MetaGPT/metagpt/ext/sela/SELA_datasets/{dataset_name}/raw/" # path to the datasets directory
 
 # Configuration
 {configuration}
@@ -29,7 +30,6 @@ Configuration:
   ```json   {{
                 "dataset": {{  
                   "dataset_name": "creditg",
-                  "target_column": "class"
             }},
             "flow": {{
                 "implementation": "sklearnensembleforestRandomForestClassifier2083190",
@@ -71,9 +71,9 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score
  
 # Constants
-DATASET_NAME = "creditg"
-TARGET_COLUMN = "class"
-DATASETS_DIR = "/home/yin/Projects/MetaGPT/metagpt/ext/sela/SELA_datasets/" + DATASET_NAME + "/raw/"
+DATASET_NAME = {dataset_name}
+TARGET_COLUMN = {target_column}
+DATASETS_DIR = "/home/yin/Projects/MetaGPT/metagpt/ext/sela/SELA_datasets/" + {dataset_name} + "/raw/"
 
 def load_data(dataset_name):
     # Load the dataset from the specified directory
@@ -119,10 +119,10 @@ def evaluate_model(model, pca, X_test, y_test):
 
 def save_model(model, pca):
     # Ensure the workspace directory exists
-    os.makedirs(DATASET_DIR, exist_ok=True)
-    with open(os.path.join(DATSET_DIR, 'random_forest_model.pkl'), 'wb') as f:
+    os.makedirs(DATASETS_DIR, exist_ok=True)
+    with open(os.path.join(DATASETS_DIR, 'random_forest_model.pkl'), 'wb') as f:
         pickle.dump((model, pca), f)
-    print(f"Model saved to {{os.path.join(DATASET_DIR, 'random_forest_model.pkl')}}")
+    print(f"Model saved to {{os.path.join(DATASETS_DIR, 'random_forest_model.pkl')}}")
 
 def main():
     # Load and preprocess data
@@ -150,7 +150,8 @@ REFLECT_PROMPT = """You are a machine learning engineer.
 Your task is to reflect on the previously created code and improve it based on the feedback given.
 The structure should stay the same, just improve the code based on the feedback. 
 Make sure the dataset directory is correct and is in the following format:
-/home/yin/Projects/MetaGPT/metagpt/ext/sela/SELA_datasets/{{dataset_name}}/raw/train.csv
+/home/yin/Projects/MetaGPT/metagpt/ext/sela/SELA_datasets/{dataset_name}/raw/train.csv
+And the target column is correct as well. The target column is called {target_column} in the dataset.
 
 # Feedback
 {feedback}
