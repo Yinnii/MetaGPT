@@ -254,8 +254,11 @@ class Node:
             if exist_scores[i] is not None:
                 exist_scores[i]['score'] = exist_scores[i]['test_score']
                 node.update(reward=exist_scores[i])
+                node.save_new_role(new_role)
+                new_role.state_saved = True
+            else:
+                node.save_new_role(new_role)
 
-            node.save_new_role(new_role)
             self.add_child(node)
 
     def get_predictions_path(self, split):
