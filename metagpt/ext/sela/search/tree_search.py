@@ -94,6 +94,7 @@ def create_initial_state(task: str, start_task_id: int, data_config: dict, args)
             task, data_config, is_di=True, special_instruction=args.special_instruction
         )
         exp_pool_path = get_exp_pool_path(task, data_config, pool_name="ds_analysis_pool")
+        mcts_logger.info(f"Experiment pool path: {exp_pool_path}")
 
     initial_state = {
         "task": task,
