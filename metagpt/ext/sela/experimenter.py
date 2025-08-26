@@ -83,7 +83,11 @@ class Experimenter(DataInterpreter):
 
     def change_next_instruction(self, new_instruction):
         if new_instruction is not None:
-            self.planner.plan.task_map[str(self.start_task_id)].instruction = new_instruction
+            try:
+                self.planner.plan.task_map[str(self.start_task_id)].instruction = new_instruction
+            except Exception as e:
+                mcts_logger.error(f"Error occurred while changing next instruction: {e}")
+
             self.remap_tasks()
 
     def update_til_start_task(self, role: Experimenter, backward: bool = True):
