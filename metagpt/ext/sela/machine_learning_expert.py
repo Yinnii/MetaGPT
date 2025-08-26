@@ -108,18 +108,30 @@ class MachineLearningExpert(Role):
         
     async def _parse_result_to_dict(self, result: str) -> dict:
         try:
-            pattern = r"Training Accuracy: ([\d.]+).*?Model Accuracy: ([\d.]+).*?Model saved to (.+)"
-            match = re.search(pattern, result, re.DOTALL)
-            if match:
-                training_accuracy = float(match.group(1))
-                model_accuracy = float(match.group(2))
-                model_path = match.group(3).strip()
+            # search for float values 
+            float_values = re.findall(r"[-+]?\d*\.\d+|\d+", result)
+            pattern = r"Model saved to (.+)"
+            model_path = re.search(pattern, result, re.DOTALL)
+            if float_values and len(float_values) >= 2:
+                training_accuracy = float(float_values[0])
+                model_accuracy = float(float_values[1])
+                model_path = model_path.group(1).strip()
 
                 return {
                     "train_score": training_accuracy,
                     "test_score": model_accuracy,
                     "model_path": model_path
                 }
+            elif float_values and len(float_values) == 1:
+                test_accuracy = float(float_values[0])
+                model_path = model_path.group(1).strip()
+
+                return {
+                    "train_score": -1,
+                    "test_score": test_accuracy,
+                    "model_path": model_path
+                }
+                
         except Exception as e:
             logger.error(f"Failed to parse result: {e}")
             # TODO: maybe the score is not in the correct order, what to do then?
