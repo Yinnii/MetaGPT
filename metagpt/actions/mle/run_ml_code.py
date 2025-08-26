@@ -7,13 +7,15 @@ import psycopg2
 from datetime import datetime
 
 POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "openml_password")
+POSTGRES_HOST = os.getenv("POSTGRES_HOST", "yin-postgres")
+POSTGRES_PORT = os.getenv("POSTGRES_PORT", "5434")
 
 connection = psycopg2.connect(
     dbname="openml",
     user="postgres",
     password=POSTGRES_PASSWORD,
-    host="yin-postgres",
-    port="5434"
+    host=POSTGRES_HOST,
+    port=POSTGRES_PORT
 )
 cursor = connection.cursor()
 
@@ -47,9 +49,9 @@ class RunMLCode(Action):
             cursor.execute("""CREATE TABLE IF NOT EXISTS dataset_model_training (
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 dataset VARCHAR(255),
-                code BYTEA
+                code TEXT
             )""")
-            cursor.execute("""INSERT INTO dataset_model_training (dataset, code, created_at) VALUES (%s, %s, %s)""", (dataset, psycopg2.Binary(code_text), datetime.now()))
+            cursor.execute("""INSERT INTO dataset_model_training (dataset, code, created_at) VALUES (%s, %s, %s)""", (dataset, code_text, datetime.now()))
             connection.commit()
 
         return code_result
