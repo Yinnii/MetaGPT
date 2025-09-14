@@ -43,7 +43,6 @@ class OntoRAGSolutionDesigner:
         else:
             description_prompt = DATASET_DESCRIPTION_CUSTOM_PROMPT.format(dataset_description=dataset_info)
 
-
         url = "http://localhost:6666/retrieve_runs"
         payload = {"query": description_prompt}
         examples = requests.post(url, json=payload).json().get("message", "No examples found.")
@@ -104,7 +103,7 @@ class OntoRAGSolutionDesigner:
             mcts_logger.info(f"Run result: {result} with type {type(result)}")
             if result is None:
                 mcts_logger.error(f"Run result is None for configuration: {run}")
-                results.append({"train_score": 0, "test_score": 0})
+                results.append({"train_score": 0, "test_score": 0, "score": 0})
             else:
                 result = result.content
                 # clear results
@@ -114,7 +113,7 @@ class OntoRAGSolutionDesigner:
                   result.pop("model_path", None)  # remove model path if exists
                   results.append(result)
                 except Exception as e:
-                  results.append({"train_score": 0, "test_score": 0})
+                  results.append({"train_score": 0, "test_score": 0, "score": 0})
         return results
 
     def create_pre_insights(self, examples, results) -> list:
@@ -122,17 +121,17 @@ class OntoRAGSolutionDesigner:
         predefined_insights.append({
             "task_type": "EDA",
             "insights": ["Perform exploratory data analysis on the training, dev, and test datasets."],
-            "score": [{"train_score": 0, "test_score": 0}]
+            "score": [{"train_score": 0, "test_score": 0, "score": 0}]
         })
         predefined_insights.append({
             "task_type": "Data Preprocessing",
             "insights": ["Preprocess the train, dev, and test datasets, including handling missing values and encoding categorical variables."],
-            "score": [{"train_score": 0, "test_score": 0}]
+            "score": [{"train_score": 0, "test_score": 0, "score": 0}]
         })
         predefined_insights.append({
             "task_type": "Feature Engineering",
             "insights": ["Engineer features for the training, dev, and test datasets to improve model performance."],
-            "score": [{"train_score": 0, "test_score": 0}]
+            "score": [{"train_score": 0, "test_score": 0, "score": 0}]
         })
         predefined_insights.append({
             "task_type": "Model Training",
