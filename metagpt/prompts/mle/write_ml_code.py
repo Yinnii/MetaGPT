@@ -122,7 +122,7 @@ def save_model(model, pca):
     os.makedirs(DATASETS_DIR, exist_ok=True)
     with open(os.path.join(DATASETS_DIR, 'random_forest_model.pkl'), 'wb') as f:
         pickle.dump((model, pca), f)
-    print(f"Model saved to {{os.path.join(DATASETS_DIR, 'random_forest_model.pkl')}}")
+    print(f"Model saved to {{os.path.join(DATASETS_DIR, '/trained_models/random_forest_model.pkl')}}")
 
 def main():
     # Load and preprocess data

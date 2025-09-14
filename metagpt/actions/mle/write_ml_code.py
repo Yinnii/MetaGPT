@@ -29,6 +29,7 @@ class WriteMLCode(Action):
             )
 
         rsp = await self._aask(reflection_prompt, system_msgs=[REFLECTION_SYSTEM_MSG])
+        
         # reflection = json.loads(CodeParser.parse_code(block=None, text=rsp))
         # return reflection["improved_impl"]
         reflection = CodeParser.parse_code(block=None, text=rsp)
@@ -57,7 +58,7 @@ class WriteMLCode(Action):
         if use_reflection:
             code = await self._debug_with_reflection(context=context, working_memory=working_memory, target_column=target_column)
         else:
-            rsp = await self.llm.aask(context, system_msgs=[ML_SYSTEM_MESSAGE], **kwargs)
+            rsp = await self.llm.aask(context, system_msgs=[ML_SYSTEM_MESSAGE])
             code = CodeParser.parse_code(block=None, text=rsp)
 
         return code
