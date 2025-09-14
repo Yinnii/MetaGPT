@@ -1,5 +1,7 @@
+from asyncio.log import logger
 import shutil
 import datetime
+import requests
 from metagpt.ext.sela.evaluation.evaluation import (
     node_evaluate_score_mlebench,
     node_evaluate_score_sela,
@@ -8,7 +10,8 @@ from metagpt.ext.sela.evaluation.visualize_mcts import get_tree_text
 from metagpt.ext.sela.runner.runner import Runner
 from metagpt.ext.sela.search.search_algorithm import MCTS, Greedy, Random
 from metagpt.ext.sela.utils import mcts_logger
-
+from metagpt.context import Context
+from metagpt.ext.sela.run_context_retriever import RunContextRetriever
 
 class MCTSRunner(Runner):
     result_path: str = "results/mcts"
@@ -66,9 +69,12 @@ class MCTSRunner(Runner):
             }
         ]
         self.save_result(results)
-        self.copy_notebook(best_node, "best")
-        self.copy_notebook(dev_best_node, "dev_best")
+        best_dir = self.copy_notebook(best_node, "best")
+        dev_best_dir = self.copy_notebook(dev_best_node, "dev_best")
         self.save_tree(text)
+
+        mcts_logger.info(self.args.task)
+        await self.save_as_run(dev_best_dir)
 
     def copy_notebook(self, node, name):
         node_dir = node.get_node_dir()
@@ -76,9 +82,32 @@ class MCTSRunner(Runner):
         save_name = self.get_save_name()
         copy_nb_dir = f"{self.result_path}/{save_name}_{name}.ipynb"
         shutil.copy(node_nb_dir, copy_nb_dir)
+        return copy_nb_dir
 
     def save_tree(self, tree_text):
         save_name = self.get_save_name()
         fpath = f"{self.result_path}/{save_name}_tree.txt"
         with open(fpath, "w") as f:
             f.write(tree_text)
+
+    async def save_as_run(self, notebook_path):
+        # call the run detail retriever and forward the json to ontology rag
+        context = Context()
+        retriever = RunContextRetriever(context=context, notebook_path=notebook_path, dataset=self.args.task)
+        run_details = await retriever.run(retriever.retrieval_prompt)
+
+        mcts_logger.info(f"Run details retrieved: {run_details.content}")
+
+        if run_details.content:
+            # Forward the run details to the graph database
+            url = "http://localhost:6666/store_run_static"
+            payload = {
+                        "run": run_details.content,
+                      }
+            success = requests.post(url, json=payload).json().get("success")
+
+        if success == True:
+            mcts_logger.info("Run details successfully stored in the graph database.")
+        else:
+            mcts_logger.info("Failed to store run details in the graph database.")
+        return
