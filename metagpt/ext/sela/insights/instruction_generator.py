@@ -37,7 +37,7 @@ DATA_CONFIG = load_data_config()
 class InstructionGenerator:
     data_config = DATA_CONFIG
 
-    def __init__(self, state, use_fixed_insights, from_scratch):
+    def __init__(self, state, use_fixed_insights, from_scratch, with_pre_insights=False):
         self.state = state
         self.file_path = state["exp_pool_path"]
         if state["custom_dataset_dir"]:
@@ -50,7 +50,13 @@ class InstructionGenerator:
             with open(dataset_info_path, "r") as file:
                 self.dataset_info = json.load(file)
         self.use_fixed_insights = use_fixed_insights
-        self.proposer = OntoRAGSolutionDesigner()
+        self.with_pre_insights = with_pre_insights
+
+        if self.with_pre_insights:
+            self.proposer = OntoRAGSolutionDesigner()
+        else:
+            self.proposer = SolutionDesigner()
+
         if self.file_path is None:
             self.from_scratch = True
         else:
@@ -126,15 +132,18 @@ class InstructionGenerator:
             else:
                 item = data[i]
                 insights = item["Analysis"]
-                score = item["Score"]
-                if score['test_score'] > 0: 
-                    exist_scores.append(score)
-                    new_instruction = original_instruction
-                else:
-                    exist_scores.append(None)
-                    new_instruction = await InstructionGenerator.generate_new_instruction(
-                        original_instruction, insights, ext_info
-                    )
+
+                if self.with_pre_insights:
+                  score = item["Score"]
+                  if score['test_score'] > 0: 
+                      exist_scores.append(score)
+                      new_instruction = original_instruction
+                  else:
+                      exist_scores.append(None)
+                
+            new_instruction = await InstructionGenerator.generate_new_instruction(
+                original_instruction, insights, ext_info
+            )
 
             new_instructions.append(new_instruction)
         return new_instructions, exist_scores

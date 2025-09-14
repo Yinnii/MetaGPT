@@ -56,6 +56,8 @@ def get_mcts_args(parser):
     parser.add_argument("--eval_func", type=str, default="sela", choices=["sela", "mlebench"])
     parser.add_argument("--custom_dataset_dir", type=str, default=None)
     parser.add_argument("--max_depth", type=int, default=6)
+    parser.add_argument("--with_pre_insights", dest="with_pre_insights", action="store_true", help="Use pre-existing insights")
+    parser.set_defaults(with_pre_insights=False)
 
 
 def get_rs_exp_args(parser):
@@ -98,8 +100,6 @@ async def main(args):
     mcts_logger.info(f"Experiment started at {start_time}")
 
     await runner.run_experiment()
-
-
 
 
 if __name__ == "__main__":

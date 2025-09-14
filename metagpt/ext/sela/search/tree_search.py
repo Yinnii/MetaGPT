@@ -243,8 +243,8 @@ class Node:
             original_instruction=original_instruction,
             max_num=max_children,
         )
-
-        mcts_logger.info(f"Scores from insights: {exist_scores}")
+        if instruction_generator.with_pre_insights:
+            mcts_logger.info(f"Scores from insights: {exist_scores}")
         new_state = self.state.copy()
         new_state["start_task_id"] += 1
         for i, insight in enumerate(insights):
@@ -446,7 +446,7 @@ class BaseTreeSearch:
         role, root = initialize_di_root_node(state, reflection=reflection)
         self.root_node = root
         self.instruction_generator = InstructionGenerator(
-            state=state, use_fixed_insights=self.use_fixed_insights, from_scratch=from_scratch
+            state=state, use_fixed_insights=self.use_fixed_insights, from_scratch=from_scratch, with_pre_insights=args.with_pre_insights
         )
         await self.instruction_generator.initialize()
 

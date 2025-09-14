@@ -5,7 +5,6 @@ from metagpt.llm import LLM
 
 DATA_CONFIG = load_data_config()
 
-
 DATASET_DESCRIPTION_SELA_PROMPT = """
 # Dataset Description
 {dataset}
@@ -80,74 +79,6 @@ Your model choices should be advanced enough to be helpful.
 ```
 """
 
-DATASET_INSIGHT_PROMPT_ONTORAG = """
-{description}
-
-# Instruction
-Propose insights to help improve the performance of the model on this dataset.
-The insights should be proposed based on the dataset description with different task types.
-Each task type should have at least 5 insights.
-Make sure each method is diverse enough and can be implemented separately.
-Be specific about models' choices, ensemble and tuning techniques, and preprocessing & feature engineering techniques.
-Your model choices should be advanced enough to be helpful.
-
-# Format
-```json
-[
-    {{
-        "task_type": "EDA",
-        "insights": [
-            "insight1",
-            "insight2",
-            "insight3",
-            ...
-            "insightN"
-        ]   
-    }},
-    {{
-        "task_type": "Data Preprocessing",
-        "insights": [
-            "insight1",
-            "insight2",
-            "insight3",
-            ...
-            "insightN"
-        ]   
-    }},
-    {{
-        "task_type": "Feature Engineering",
-        "insights": [
-            "insight1",
-            "insight2",
-            "insight3",
-            ...
-            "insightN"
-        ]   
-    }},
-    {{
-        "task_type": "Hyperparameter Tuning",
-        "insights": [
-            "insight1",
-            "insight2",
-            "insight3",
-            ...
-            "insightN"
-        ]
-    }},
-    {{
-        "task_type": "Model Training",
-        "insights": [
-            "insight1",
-            "insight2",
-            "insight3",
-            ...
-            "insightN"
-        ]   
-    }}
-]
-```
-"""
-
 INSIGHT_PROPOSAL_PROMPT = """
 You are an AI assistant tasked with analyzing a machine learning solution and proposing new insights to improve its performance. Given the current solution code and development score, suggest innovative approaches to enhance the model.
 
@@ -170,50 +101,6 @@ Please format your response as a JSON array with the following structure:
     }},
     {{
         "task_type": "Feature Engineering",
-        "insights": [
-            "insight1",
-            "insight2"
-        ]
-    }},
-    {{
-        "task_type": "Model Training",
-        "insights": [
-            "insight1",
-            "insight2"
-        ]
-    }}
-]
-"""
-
-INSIGHT_PROPOSAL_PROMPT_ONTORAG = """
-You are an AI assistant tasked with analyzing a machine learning solution and proposing new insights to improve its performance. Given the current solution code and development score, suggest innovative approaches to enhance the model.
-
-Current Solution Code:
-{solution_code}
-
-Development Score: {dev_score}
-
-Based on this information, propose 3-5 new insights across different aspects of the machine learning pipeline (Data Preprocessing, Feature Engineering, and Model Training). Your insights should be specific, actionable, and have the potential to improve the model's performance.
-
-Please format your response as a JSON array with the following structure:
-[
-
-    {{
-        "task_type": "Data Preprocessing",
-        "insights": [
-            "insight1",
-            "insight2"
-        ]
-    }},
-    {{
-        "task_type": "Feature Engineering",
-        "insights": [
-            "insight1",
-            "insight2"
-        ]
-    }},
-    {{
-        "task_type": "Hyperparameter Tuning",
         "insights": [
             "insight1",
             "insight2"
