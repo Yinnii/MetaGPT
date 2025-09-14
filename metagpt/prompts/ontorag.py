@@ -81,8 +81,6 @@ The hyperparameter optimization insights should not use grid search or best esti
 
 """
 
-
-# add role
 DATASET_INSIGHT_PROMPT_ONTORAG = """
 # Role
 You are a Machine Learning Expert tasked with analyzing a dataset and proposing insights to improve model performance.
