@@ -19,6 +19,8 @@ from metagpt.logs import logger
 from metagpt.utils.ahttp_client import apost
 
 TOKEN_COSTS = {
+    "azure-gpt-4o-mini": {"prompt": 0.00015, "completion": 0.0006},
+    "azure-gpt-41-mini": {"prompt": 0.00015, "completion": 0.0006},
     "gpt-3.5-turbo": {"prompt": 0.0015, "completion": 0.002},
     "gpt-3.5-turbo-0301": {"prompt": 0.0015, "completion": 0.002},
     "gpt-3.5-turbo-0613": {"prompt": 0.0015, "completion": 0.002},
@@ -382,6 +384,10 @@ def count_input_tokens(messages, model="gpt-3.5-turbo-0125"):
         vo = anthropic.Client()
         num_tokens = vo.count_tokens(str(messages))
         return num_tokens
+    
+    if "azure" in model:
+        model = model.strip("azure-")
+
     try:
         encoding = tiktoken.encoding_for_model(model)
     except KeyError:
@@ -472,6 +478,10 @@ def count_output_tokens(string: str, model: str) -> int:
         vo = anthropic.Client()
         num_tokens = vo.count_tokens(string)
         return num_tokens
+
+    if "azure" in model:
+        model = model.strip("azure-")
+
     try:
         encoding = tiktoken.encoding_for_model(model)
     except KeyError:

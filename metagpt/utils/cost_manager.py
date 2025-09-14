@@ -13,7 +13,7 @@ from pydantic import BaseModel
 
 from metagpt.logs import logger
 from metagpt.utils.token_counter import FIREWORKS_GRADE_TOKEN_COSTS, TOKEN_COSTS
-
+from metagpt.utils.connect_postgres import init_postgresql, close_postgresql
 
 class Costs(NamedTuple):
     total_prompt_tokens: int
@@ -54,6 +54,18 @@ class CostManager(BaseModel):
             + completion_tokens * self.token_costs[model]["completion"]
         ) / 1000
         self.total_cost += cost
+
+        # store costs to postgresql
+        connection = init_postgresql()
+        with connection.cursor() as cursor:
+            cursor.execute("""CREATE TABLE IF NOT EXISTS sela_costs (date TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
+                              model VARCHAR(255), prompt_tokens INT, completion_tokens INT, cost FLOAT)""")
+            cursor.execute("""INSERT INTO sela_costs (model, prompt_tokens, completion_tokens, cost) 
+                              VALUES (%s, %s, %s, %s)""",
+                           (model, prompt_tokens, completion_tokens, cost))
+        connection.commit()
+        close_postgresql(connection)
+
         logger.info(
             f"Total running cost: ${self.total_cost:.3f} | Max budget: ${self.max_budget:.3f} | "
             f"Current cost: ${cost:.3f}, prompt_tokens: {prompt_tokens}, completion_tokens: {completion_tokens}"
