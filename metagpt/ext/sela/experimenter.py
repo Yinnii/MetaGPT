@@ -186,7 +186,11 @@ class Experimenter(DataInterpreter):
         name = self.get_node_name()
         role_path = Path(stg_path) / f"{name}.json"
         # save state as json file
-        write_json_file(role_path, self.model_dump())
+        try:
+          write_json_file(role_path, self.model_dump())
+          mcts_logger.info(f"State saved to {role_path}") 
+        except Exception as e:
+          mcts_logger.error(f"Failed to save state: {e}")
 
     def remap_tasks(self):
         self.planner.plan.tasks = [
