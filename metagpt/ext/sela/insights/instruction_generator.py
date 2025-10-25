@@ -37,7 +37,7 @@ DATA_CONFIG = load_data_config()
 class InstructionGenerator:
     data_config = DATA_CONFIG
 
-    def __init__(self, state, use_fixed_insights, from_scratch, with_pre_insights=False):
+    def __init__(self, state, use_fixed_insights, from_scratch, with_pre_insights=False, with_pretraining=False):
         self.state = state
         self.file_path = state["exp_pool_path"]
         if state["custom_dataset_dir"]:
@@ -51,9 +51,10 @@ class InstructionGenerator:
                 self.dataset_info = json.load(file)
         self.use_fixed_insights = use_fixed_insights
         self.with_pre_insights = with_pre_insights
+        self.with_pretraining = with_pretraining
 
         if self.with_pre_insights:
-            self.proposer = OntoRAGSolutionDesigner()
+            self.proposer = OntoRAGSolutionDesigner(with_pretraining=self.with_pretraining)
         else:
             self.proposer = SolutionDesigner()
 
@@ -133,13 +134,11 @@ class InstructionGenerator:
                 item = data[i]
                 insights = item["Analysis"]
 
-                if self.with_pre_insights:
+                if self.with_pretraining:
                   score = item["Score"]
                   if score['test_score'] > 0: 
                       exist_scores.append(score)
                       new_instruction = original_instruction
-                  else:
-                      exist_scores.append(None)
                 
             new_instruction = await InstructionGenerator.generate_new_instruction(
                 original_instruction, insights, ext_info
