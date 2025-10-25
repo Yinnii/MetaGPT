@@ -19,8 +19,12 @@ from metagpt.logs import logger
 from metagpt.utils.ahttp_client import apost
 
 TOKEN_COSTS = {
-    "azure-gpt-4o-mini": {"prompt": 0.00015, "completion": 0.0006},
-    "azure-gpt-41-mini": {"prompt": 0.00015, "completion": 0.0006},
+    "azure-gpt-5-mini": {"prompt": 0.25, "completion": 2},
+    "azure-gpt-o4-mini": {"prompt": 1.10, "completion": 4.4},
+    "azure-gpt-4o": {"prompt": 0.005, "completion": 0.015},
+    "azure-gpt-4.1": {"prompt": 0.002, "completion": 0.008},
+    "azure-gpt-4o-mini": {"prompt": 0.0002, "completion": 0.0006},
+    "azure-gpt-4.1-mini": {"prompt": 0.0004, "completion": 0.0016},
     "gpt-3.5-turbo": {"prompt": 0.0015, "completion": 0.002},
     "gpt-3.5-turbo-0301": {"prompt": 0.0015, "completion": 0.002},
     "gpt-3.5-turbo-0613": {"prompt": 0.0015, "completion": 0.002},
@@ -417,6 +421,8 @@ def count_input_tokens(messages, model="gpt-3.5-turbo-0125"):
         "gpt-4o-2024-08-06",
         "gpt-4o-mini",
         "gpt-4o-mini-2024-07-18",
+        "gpt-4.1-mini",
+        "gpt-5-mini",
         "o1-preview",
         "o1-preview-2024-09-12",
         "o1-mini",
