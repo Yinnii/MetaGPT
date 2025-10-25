@@ -252,11 +252,15 @@ class Node:
             node = Node(parent=self, state=new_state, action=insight, value=0)
 
             # if a score already has been retrieved, use it in the node for warm start
-            if exist_scores[i] is not None:
-                exist_scores[i]['score'] = exist_scores[i]['test_score']
-                node.update(reward=exist_scores[i])
-                node.save_new_role(new_role)
-                new_role.state_saved = True
+            if instruction_generator.with_pre_insights:
+                if i < len(exist_scores) and exist_scores[i] is not None:
+                    exist_scores[i]['score'] = exist_scores[i]['test_score']
+                    node.update(reward=exist_scores[i])
+                    node.save_new_role(new_role)
+                    new_role.state_saved = True
+                else:
+                    mcts_logger.info(f"MCTS", f"No existing score for insight {i}")
+                    node.save_new_role(new_role)
             else:
                 node.save_new_role(new_role)
 
@@ -304,6 +308,7 @@ class Node:
             try:
                 if not role:
                     role = self.load_role()
+                    mcts_logger.info("MCTS", f"Loaded role for node {self.id}: {role.node_id}")
                     await load_execute_notebook(role)  # execute previous notebook's code
                     await role.run(with_message="continue")
                 else:
@@ -320,7 +325,6 @@ class Node:
                 num_runs += 1
 
         if not run_finished:
-            mcts_logger.info("MCTS", f"Role {role.node_id} failed to run")
             if self.state["low_is_better"]:
                 score_dict = {"test_score": np.inf, "dev_score": np.inf, "score": np.inf}
             else:
@@ -335,6 +339,7 @@ class Node:
 
             score_dict = {k: normalize_score(v) for k, v in score_dict.items()}
         self.normalized_reward = score_dict
+        mcts_logger.info("MCTS", f"Node {self.id} reward: {score_dict}")
         result_dict = role.get_solution()
         return score_dict, result_dict
 
@@ -446,7 +451,7 @@ class BaseTreeSearch:
         role, root = initialize_di_root_node(state, reflection=reflection)
         self.root_node = root
         self.instruction_generator = InstructionGenerator(
-            state=state, use_fixed_insights=self.use_fixed_insights, from_scratch=from_scratch, with_pre_insights=args.with_pre_insights
+            state=state, use_fixed_insights=self.use_fixed_insights, from_scratch=from_scratch, with_pre_insights=args.with_pre_insights, with_pretraining=args.with_pretraining
         )
         await self.instruction_generator.initialize()
 
