@@ -57,6 +57,7 @@ def get_mcts_args(parser):
     parser.add_argument("--custom_dataset_dir", type=str, default=None)
     parser.add_argument("--max_depth", type=int, default=6)
     parser.add_argument("--with_pre_insights", dest="with_pre_insights", action="store_true", help="Use pre-existing insights")
+    parser.add_argument("--with_pretraining", dest="with_pretraining", action="store_true", help="Use pre-trained model")
     parser.set_defaults(with_pre_insights=False)
 
 
