@@ -12,6 +12,10 @@ from metagpt.prompts.ontorag import (
     INFORMATION_BASED_INSIGHTS,
     INSIGHT_PROPOSAL_PROMPT_ONTORAG,
     MALEX_RUN_PROMPT,
+    INSIGHT_PROPOSER,
+    HYPERPARAMETER_PROPOSER,
+    INSIGHT_PROPOSER_EXAMPLE,
+    HYPERPARAMETER_PROPOSER_EXAMPLE,
 )
 
 DATA_CONFIG = load_data_config()
@@ -32,6 +36,9 @@ TASK_TO_ID = {"EDA": 1, "Data Preprocessing": 2, "Feature Engineering": 3, "Mode
 class OntoRAGSolutionDesigner:
     data_dir: str = DATA_CONFIG["datasets_dir"]
 
+    def __init__(self, with_pretraining: bool):
+        self.with_pretraining = with_pretraining
+
     async def generate_solutions(self, dataset_info, dataset_name, save_analysis_pool=True):
         llm = LLM()
         if type(dataset_info) == dict:
@@ -44,7 +51,7 @@ class OntoRAGSolutionDesigner:
             description_prompt = DATASET_DESCRIPTION_CUSTOM_PROMPT.format(dataset_description=dataset_info)
 
         url = "http://localhost:6666/retrieve_runs"
-        payload = {"query": description_prompt}
+        payload = {"query": f"Retrieve runs for the dataset {dataset_name}" + description_prompt}
         examples = requests.post(url, json=payload).json().get("message", "No examples found.")
         # examples = clean_json_from_rsp(examples)
 
@@ -62,9 +69,12 @@ class OntoRAGSolutionDesigner:
         target_name = dataset_info.get("target_col", "class")
         mcts_logger.info(f"Dataset is {dataset_name} with target name: {target_name}")
 
-        results = await self.retrieve_run_results(runs, dataset_name, target_name)
-
-        predefined_insights = self.create_pre_insights(examples, results)
+        results = []
+        if self.with_pretraining:
+          mcts_logger.info(f"Extract scores using malex.")
+          results = await self.retrieve_run_results(runs, dataset_name, target_name)
+          
+        predefined_insights = await self.create_pre_insights(examples, results)
 
         mcts_logger.info(f"Predefined insights: {predefined_insights} with type {type(predefined_insights)}")
 
@@ -116,75 +126,135 @@ class OntoRAGSolutionDesigner:
                   results.append({"train_score": 0, "test_score": 0, "score": 0})
         return results
 
-    def create_pre_insights(self, examples, results) -> list:
+    async def create_pre_insights(self, examples, results) -> list:
+        llm = LLM()
         predefined_insights = []
-        predefined_insights.append({
-            "task_type": "EDA",
-            "insights": ["Perform exploratory data analysis on the training, dev, and test datasets."],
-            "score": [{"train_score": 0, "test_score": 0, "score": 0}]
-        })
-        predefined_insights.append({
-            "task_type": "Data Preprocessing",
-            "insights": ["Preprocess the train, dev, and test datasets, including handling missing values and encoding categorical variables."],
-            "score": [{"train_score": 0, "test_score": 0, "score": 0}]
-        })
-        predefined_insights.append({
-            "task_type": "Feature Engineering",
-            "insights": ["Engineer features for the training, dev, and test datasets to improve model performance."],
-            "score": [{"train_score": 0, "test_score": 0, "score": 0}]
-        })
-        predefined_insights.append({
-            "task_type": "Model Training",
-            "insights": [],
-            "score": []
-        })
-        predefined_insights.append({
-            "task_type": "Hyperparameter Optimization",
-            "insights": [],
-            "score": []
-        })
 
-        if isinstance(examples, dict):
-            examples = examples.get("runs", [])
-        elif not isinstance(examples, list):
-            examples = [examples]
+        if not results or len(results) == 0:
+            predefined_insights.append({
+                "task_type": "EDA",
+                "insights": ["Perform exploratory data analysis on the training, dev, and test datasets."],
+            })
+            predefined_insights.append({
+                "task_type": "Data Preprocessing",
+                "insights": ["Preprocess the train, dev, and test datasets, including handling missing values and encoding categorical variables."],
+            })
+            predefined_insights.append({
+                "task_type": "Feature Engineering",
+                "insights": ["Engineer features for the training, dev, and test datasets to improve model performance."],
+            })
+            predefined_insights.append({
+                "task_type": "Model Training",
+                "insights": [],
+            })
+            predefined_insights.append({
+                "task_type": "Hyperparameter Optimization",
+                "insights": [],
+            })
 
-        for example in examples:
-            # if isinstance(example, str):
-            #     example = json.loads(example)
+            if isinstance(examples, dict):
+                examples = examples.get("runs", [])
+            elif not isinstance(examples, list):
+                examples = [examples]
 
-            mcts_logger.info(f"Processing example: {type(example)} - {example}")
-            try:
-              flow = example.get("run").get("flow", {})
-              mcts_logger.info(f"Flow details: {flow}")
-              clf = re.sub(r'\d+', '', str(flow.get('implementation', '')))
-              software_list = flow.get('software', [])
-              software_str = ', '.join([f"{s['name']} {s['version']}" for s in software_list]) if isinstance(software_list, list) else str(software_list)
-              software = re.sub(r'\d+', '', software_str)
-              predefined_insights[3]["insights"].append(f"Train a model with {clf} and software {software}")
-              predefined_insights[4]["insights"].append(f"Optimize hyperparameters with {flow.get('hyperparametersettings', {})}")
-            except Exception as e:
-              mcts_logger.error(f"Error processing example: {e}")
-              continue
+            for example in examples:
+                # if isinstance(example, str):
+                #     example = json.loads(example)
+                mcts_logger.info(f"Processing example: {type(example)} - {example}")
+                try:
+                  flow = example.get("run").get("flow", {})
+                  mcts_logger.info(f"Flow details: {flow}")
+                  clf = re.sub(r'\d+', '', str(flow.get('implementation', '')))
+                  software_list = flow.get('software', [])
+                  software_str = ', '.join([f"{s['name']} {s['version']}" for s in software_list]) if isinstance(software_list, list) else str(software_list)
+                  software = re.sub(r'\d+', '', software_str)
 
-        for result in results:
-            if isinstance(result, str):
-                result = json.loads(result)
-            mcts_logger.info(f"Processing result: {result}")
-            predefined_insights[3]["score"].append({"train_score": result["train_score"], "test_score": result["test_score"]})
-            predefined_insights[4]["score"].append({"train_score": result["train_score"], "test_score": result["test_score"]})
+                  train_insight = await llm.aask(INSIGHT_PROPOSER.format(software=software, classifier=clf) + INSIGHT_PROPOSER_EXAMPLE)
+                  hyper_insight = await llm.aask(HYPERPARAMETER_PROPOSER.format(hyperparameter_settings=flow.get('hyperparametersettings', {})) + HYPERPARAMETER_PROPOSER_EXAMPLE)
+                  
+                  mcts_logger.info(f"Generated insights: {train_insight}, {hyper_insight}")
 
-            if result["test_score"] > predefined_insights[2]["score"][0]["test_score"]:
-                predefined_insights[2]["score"][0]["test_score"] = result["test_score"]
-                predefined_insights[2]["score"][0]["train_score"] = result["train_score"]
-                predefined_insights[1]["score"][0]["test_score"] = result["test_score"]
-                predefined_insights[1]["score"][0]["train_score"] = result["train_score"]
-                predefined_insights[0]["score"][0]["test_score"] = result["test_score"]
-                predefined_insights[0]["score"][0]["train_score"] = result["train_score"]
+                  predefined_insights[3]["insights"].append(train_insight)
+                  predefined_insights[4]["insights"].append(hyper_insight)
+                except Exception as e:
+                  mcts_logger.error(f"Error processing example: {e}")
+                  continue
+            mcts_logger.info(f"Predefined insights after processing: {predefined_insights}")
+          
+            return predefined_insights
+        else:             
+            predefined_insights.append({
+                "task_type": "EDA",
+                "insights": ["Perform exploratory data analysis on the training, dev, and test datasets."],
+                "score": [{"train_score": 0, "test_score": 0, "score": 0}]
+            })
+            predefined_insights.append({
+                "task_type": "Data Preprocessing",
+                "insights": ["Preprocess the train, dev, and test datasets, including handling missing values and encoding categorical variables."],
+                "score": [{"train_score": 0, "test_score": 0, "score": 0}]
+            })
+            predefined_insights.append({
+                "task_type": "Feature Engineering",
+                "insights": ["Engineer features for the training, dev, and test datasets to improve model performance."],
+                "score": [{"train_score": 0, "test_score": 0, "score": 0}]
+            })
+            predefined_insights.append({
+                "task_type": "Model Training",
+                "insights": [],
+                "score": []
+            })
+            predefined_insights.append({
+                "task_type": "Hyperparameter Optimization",
+                "insights": [],
+                "score": []
+            })
 
-        mcts_logger.info(f"Predefined insights after processing: {predefined_insights}")
-        return predefined_insights
-    
+            if isinstance(examples, dict):
+                examples = examples.get("runs", [])
+            elif not isinstance(examples, list):
+                examples = [examples]
+
+            for example in examples:
+                # if isinstance(example, str):
+                #     example = json.loads(example)
+
+                mcts_logger.info(f"Processing example: {type(example)} - {example}")
+                try:
+                  flow = example.get("run").get("flow", {})
+                  mcts_logger.info(f"Flow details: {flow}")
+                  clf = re.sub(r'\d+', '', str(flow.get('implementation', '')))
+                  software_list = flow.get('software', [])
+                  software_str = ', '.join([f"{s['name']} {s['version']}" for s in software_list]) if isinstance(software_list, list) else str(software_list)
+                  software = re.sub(r'\d+', '', software_str)
+                  train_insight = await llm.aask(INSIGHT_PROPOSER.format(software=software, classifier=clf) + INSIGHT_PROPOSER_EXAMPLE)
+                  hyper_insight = await llm.aask(HYPERPARAMETER_PROPOSER.format(hyperparameter_settings=flow.get('hyperparametersettings', {})) + HYPERPARAMETER_PROPOSER_EXAMPLE)
+                  
+                  mcts_logger.info(f"Generated insights: {train_insight}, {hyper_insight}")
+
+                  predefined_insights[3]["insights"].append(train_insight)
+                  predefined_insights[4]["insights"].append(hyper_insight)
+                except Exception as e:
+                  mcts_logger.error(f"Error processing example: {e}")
+                  continue
+
+            for result in results:
+                if isinstance(result, str):
+                    result = json.loads(result)
+                mcts_logger.info(f"Processing result: {result}")
+                predefined_insights[3]["score"].append({"train_score": result["train_score"], "test_score": result["test_score"]})
+                predefined_insights[4]["score"].append({"train_score": result["train_score"], "test_score": result["test_score"]})
+
+                if result["test_score"] > predefined_insights[2]["score"][0]["test_score"]:
+                    predefined_insights[2]["score"][0]["test_score"] = result["test_score"]
+                    predefined_insights[2]["score"][0]["train_score"] = result["train_score"]
+                    predefined_insights[1]["score"][0]["test_score"] = result["test_score"]
+                    predefined_insights[1]["score"][0]["train_score"] = result["train_score"]
+                    predefined_insights[0]["score"][0]["test_score"] = result["test_score"]
+                    predefined_insights[0]["score"][0]["train_score"] = result["train_score"]
+
+            mcts_logger.info(f"Predefined insights after processing: {predefined_insights}")
+            return predefined_insights
+
     def append_new_insights_to_predefined(self, predefined_insights, new_insights) -> list:
         for task_type_insights in new_insights:
             task_type = task_type_insights["task_type"]
@@ -219,21 +289,30 @@ class OntoRAGSolutionDesigner:
             insights_rsp = json.loads(insights_rsp)
 
         analysis_pool = []
+
         for task_type_insights in insights_rsp:
             task_type = task_type_insights["task_type"]
             insights = task_type_insights["insights"]
             scores = task_type_insights.get("score", [])
             for i, insight in enumerate(insights):
-                if i < len(scores):
-                    score = scores[i]
+                if self.with_pretraining:
+                    if i < len(scores):
+                        score = scores[i]
+                    else:
+                        score = {"train_score": 0, "test_score": 0, "score": 0}
+
+                    analysis_pool.append({
+                        "Analysis": insight,
+                        "Category": task_type,
+                        "task_id": TASK_TO_ID[task_type],
+                        "Score": score
+                    })
                 else:
-                    score = {"train_score": 0, "test_score": 0}
-                analysis_pool.append({
-                    "Analysis": insight,
-                    "Category": task_type,
-                    "task_id": TASK_TO_ID[task_type],
-                    "Score": score
-                })
+                    analysis_pool.append({
+                        "Analysis": insight,
+                        "Category": task_type,
+                        "task_id": TASK_TO_ID[task_type],
+                    })
         return analysis_pool
 
     def metadata_builder(self, qualities):
