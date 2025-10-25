@@ -3,8 +3,6 @@ from __future__ import annotations
 import asyncio, re, json
 from json_repair import repair_json
 
-from metagpt.context import Context
-from metagpt.actions.di.write_analysis_code import WriteAnalysisCode
 from metagpt.actions.mle.write_ml_code import WriteMLCode
 from metagpt.actions.mle.run_ml_code import RunMLCode
 from metagpt.logs import logger
@@ -18,6 +16,14 @@ from metagpt.prompts.mle.write_ml_code import (
 class MachineLearningExpert(Role):
     name: str = "Malex"
     profile: str = "MachineLearningExpert"
+    goal: str = """You are a Machine Learning expert. 
+                  Your task is to create machine learning models based on user requirements. 
+                  You will write code to create the model and run the code to evaluate the model. 
+                  You will iterate this process until you have a satisfactory model."""
+    constraints: str = """You must use Python and common ML libraries such as scikit-learn, TensorFlow, or PyTorch. 
+                          You must write code that is efficient and follows best practices.
+                          You must handle errors gracefully and provide meaningful feedback.
+                          You must not use any external APIs or services."""
     max_react_loop: int = 3  # used here to reflect
 
     def __init__(self, dataset, target_column, **kwargs):
