@@ -19,12 +19,12 @@ INFORMATION_BASED_INSIGHTS = """
 # Dataset Description
 {description}
 
-# Existing tree
+# Existing Insights
 {predefined_insights}
 
-You are a Machine Learning Expert tasked with analyzing a dataset and propsing insights to improve model performance.
+You are a Machine Learning Expert tasked with analyzing a dataset and proposing insights to improve model performance.
 The insights for each task type should contain 4 unique insights.
-Be specific about models' choices, ensemble and tuning techniques, and preprocessing & feature engineering techniques.
+Be specific about models' choices, ensemble, tuning, preprocessing, and feature engineering techniques.
 Your model choices should be advanced enough to be helpful and distinct from the predefined insights.
 All insights should be distinct from each other.
 The hyperparameter optimization insights should not use grid search or best estimators, use a random setting instead.
@@ -205,4 +205,31 @@ Please format your response as a JSON array with the following structure:
 
 MALEX_RUN_PROMPT = """ Write and run a python script to train the dataset with the following configuration: 
 {configuration}
+"""
+
+INSIGHT_PROPOSER = """ You are a Prompt Engineer. 
+Given the following software {software} and classifier {classifier}, provide a concise insight prompt for training a model with it. 
+Formulate the prompt in a way that it can be directly used to guide the model training process. 
+Remove special characters and ensure clarity and precision in the prompt.
+"""
+
+INSIGHT_PROPOSER_EXAMPLE = """
+Example:
+Given the following software scikit-learn and classifier RandomForestClassifier, provide a concise insight prompt for training a model with it.
+Output:
+"Train a RandomForestClassifier using scikit-learn on the provided dataset. Use appropriate preprocessing, set relevant hyperparameters (e.g., n_estimators, max_depth), fit the model on the training data, and evaluate performance using cross-validation or a separate validation set."
+"""
+
+HYPERPARAMETER_PROPOSER = """ You are a Prompt Engineer. 
+Given the following hyperparameter settings {hyperparameter_settings}, provide a concise insight prompt for optimizing hyperparameters with it. 
+If the settings are empty, select random parameters. 
+Formulate the prompt in a way that it can be used by different classification models by adapting parameter names as needed.
+Remove special characters and ensure clarity and precision in the prompt.
+"""
+
+HYPERPARAMETER_PROPOSER_EXAMPLE = """
+Example:
+Given the following hyperparameter settings {'n_estimators': [100, 200], 'max_depth': [10, 20]}, provide a concise insight prompt for optimizing hyperparameters with it.
+Output: 
+"Optimize hyperparameters using n estimators set to 100 and 200 and max depth set to 10 and 20 to find the best model performance. Ensure compatibility with other classification models by adapting parameter names as needed."
 """
