@@ -97,7 +97,7 @@ class MCTSRunner(Runner):
         run_details = await retriever.run(retriever.retrieval_prompt)
 
         mcts_logger.info(f"Run details retrieved: {run_details.content}")
-
+        success = False
         if run_details.content:
             # Forward the run details to the graph database
             url = "http://localhost:6666/store_run_static"
