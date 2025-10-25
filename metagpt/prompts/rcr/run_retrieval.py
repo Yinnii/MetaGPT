@@ -89,6 +89,7 @@ RUN_RETRIEVAL_EXAMPLE = """
   ...
 
   Based on the example extract, the following information can be retrieved:
+  ```json
   {
     "name": "run34567", <- run with a random ID assigned
     "flow": {
@@ -109,6 +110,6 @@ RUN_RETRIEVAL_EXAMPLE = """
       "value": 0.9103
     }
   }
-
+  ```
   This is only an example, the actual implementation may vary.
 """
