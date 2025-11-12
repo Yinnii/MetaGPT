@@ -4,7 +4,9 @@ from metagpt.utils.common import CodeParser
 from metagpt.logs import logger
 import os
 import psycopg2
+import py2nb
 from datetime import datetime
+from metagpt.const import ROLE_PATH
 
 POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "openml_password")
 POSTGRES_HOST = os.getenv("POSTGRES_HOST", "yin-postgres")
@@ -22,6 +24,7 @@ cursor = connection.cursor()
 class RunMLCode(Action):
     name: str = "RunMLCode"
     data_dir: str = "/home/yin/Projects/MetaGPT/metagpt/ext/sela/SELA_datasets"
+    role_dir: str = ROLE_PATH
     success: bool = False
 
     def _store_code(self, code_text: str, dataset: str):
@@ -54,6 +57,20 @@ class RunMLCode(Action):
             cursor.execute("""INSERT INTO dataset_model_training (dataset, code, created_at) VALUES (%s, %s, %s)""", (dataset, code_text, datetime.now()))
             connection.commit()
 
+            # store the code also as jupyter notebook
+            # check if Node-0-0-0-0-0.ipynb already exists
+            counter = 0
+            node_notebook_path = f'{self.role_dir}/{dataset}/Node-0-0-0-0-{counter}.ipynb'
+
+            # increment counter until a non-existing file is found
+            while os.path.exists(node_notebook_path):
+                logger.info(f"Notebook {node_notebook_path} already exists. Skipping notebook creation.")
+                counter += 1
+                node_notebook_path = f'{self.role_dir}/{dataset}/Node-0-0-0-0-{counter}.ipynb'
+
+            executed_notebook = py2nb.convert(path, output_name=node_notebook_path)
+            logger.info(f"Executed notebook saved at {node_notebook_path}.")
+
         return code_result
     
     async def execute_code(self, path: str):
@@ -62,9 +79,4 @@ class RunMLCode(Action):
             return result.stderr
         self.success = True
         logger.info(f"Code executed successfully: {result.stdout}")
-        return result.stdout
-
-
-
-  
-    
+        return result.stdout   
