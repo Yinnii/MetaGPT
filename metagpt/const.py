@@ -7,7 +7,12 @@ from pathlib import Path
 from loguru import logger
 
 import metagpt
-
+import yaml
+def get_yaml_config(yaml_file: str) -> dict:
+    """Load configuration from a YAML file."""
+    with open(yaml_file, "r") as f:
+        config = yaml.safe_load(f)
+    return config
 
 def get_metagpt_package_root():
     """Get the root directory of the installed package."""
@@ -56,6 +61,9 @@ UT_PY_PATH = UT_PATH / "files/ut/"
 API_QUESTIONS_PATH = UT_PATH / "files/question/"
 
 SERDESER_PATH = DEFAULT_WORKSPACE_ROOT / "storage"  # TODO to store `storage` under the individual generated project
+# get Role path from data.yaml 'role_dir' if exists
+CONFIG = get_yaml_config(METAGPT_ROOT / "metagpt/ext/sela/data.yaml")
+ROLE_PATH = DEFAULT_WORKSPACE_ROOT / CONFIG.get("role_dir")
 
 TMP = METAGPT_ROOT / "tmp"
 
