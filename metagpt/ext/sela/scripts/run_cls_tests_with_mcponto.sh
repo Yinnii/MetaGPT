@@ -4,17 +4,17 @@
 tasks=(
   Clickpredictionsmall
   creditg
-  GesturePhaseSegmentationProcessed
+  # GesturePhaseSegmentationProcessed
   icr
   jasmine
-  kc1
-  kick
-  mfeatfactors
+  # kc1
+  # kick
+  # mfeatfactors
   segment
   smokerstatus
   softwaredefects
   # titanic
-  winequalitywhite
+  # winequalitywhite
 )
 
 # Number of rollouts
@@ -32,3 +32,14 @@ for task in "${tasks[@]}"; do
 done
 
 echo "All experiments completed."
+
+for task in "${tasks[@]}"; do
+  echo "Check if task resulted in mcts results: $task"
+
+  if find /home/yin/Projects/MetaGPT/metagpt/ext/sela/results/mcts -type f -name "*${task}*" | grep -q .; then
+    echo "Results found for $task."
+  else
+    echo "$task needs restart."
+    echo "$task \n" >> ./scripts/restarts_qwen2.5_MCPOnto.txt
+  fi
+done

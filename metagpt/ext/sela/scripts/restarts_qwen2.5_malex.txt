@@ -1,0 +1,12 @@
+creditg
+GesturePhaseSegmentationProcessed
+icr
+jasmine
+kc1
+kick
+mfeatfactors
+segment
+smokerstatus
+softwaredefects
+titanic
+winequalitywhite

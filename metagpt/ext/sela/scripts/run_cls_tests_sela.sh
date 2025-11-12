@@ -2,19 +2,19 @@
 
 # List of tasks to run
 tasks=(
-  Clickpredictionsmall
-  creditg
+  # Clickpredictionsmall
+  # creditg
   GesturePhaseSegmentationProcessed
   icr
-  jasmine
-  kc1
+  # jasmine
+  # kc1
   kick
   # mfeatfactors
-  segment
-  smokerstatus
-  softwaredefects
-  titanic
-  winequalitywhite
+  # segment
+  # smokerstatus
+  # softwaredefects
+  # titanic
+  # winequalitywhite
 )
 
 # Number of rollouts
@@ -27,7 +27,17 @@ for task in "${tasks[@]}"; do
     --exp_mode mcts \
     --task "$task" \
     --rollouts "$rollouts" \
-    --from_scratch
+    # --from_scratch
 done
 
 echo "All experiments completed."
+
+for task in "${tasks[@]}"; do
+  echo "Check if task resulted in mcts results: $task"
+  if find /home/yin/Projects/MetaGPT/metagpt/ext/sela/results/mcts -type f -name "*${task}*" | grep -q .; then
+    echo "Results found for $task."
+  else
+    echo "$task needs restart."
+    echo "$task" >> ./scripts/restarts_gpt4.1_SELA.txt
+  fi
+done
