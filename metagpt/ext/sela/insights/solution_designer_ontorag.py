@@ -1,5 +1,6 @@
 import json, requests, re
 
+from json_repair import repair_json
 from metagpt.ext.sela.machine_learning_expert import MachineLearningExpert
 from metagpt.context import Context
 
@@ -32,7 +33,6 @@ KEY_DATASET_FEATURES = [
 
 TASK_TO_ID = {"EDA": 1, "Data Preprocessing": 2, "Feature Engineering": 3, "Model Training": 4, "Hyperparameter Optimization": 5, "Model Evaluation": 6}
 
-
 class OntoRAGSolutionDesigner:
     data_dir: str = DATA_CONFIG["datasets_dir"]
 
@@ -61,7 +61,11 @@ class OntoRAGSolutionDesigner:
             examples = json.loads(examples)
         
         if isinstance(examples, dict):
-            runs = examples.get("runs", [])
+            try:
+                runs = examples.get("runs", [])
+            except Exception as e:
+                mcts_logger.error(f"Error retrieving runs from examples: {e}")
+                runs = examples
         elif isinstance(examples, list):
             runs = examples
 
@@ -117,13 +121,14 @@ class OntoRAGSolutionDesigner:
             else:
                 result = result.content
                 # clear results
+                mcts_logger.info(f"Processing run result: {result}")
                 try:
                   if isinstance(result, str):
                       result = json.loads(result)
                   result.pop("model_path", None)  # remove model path if exists
                   results.append(result)
                 except Exception as e:
-                  results.append({"train_score": 0, "test_score": 0, "score": 0})
+                  results.append({"train_score": result.get("train_score", 0), "test_score": result.get("test_score", 0), "score": result.get("test_score", 0)})
         return results
 
     async def create_pre_insights(self, examples, results) -> list:
@@ -178,6 +183,26 @@ class OntoRAGSolutionDesigner:
                   predefined_insights[4]["insights"].append(hyper_insight)
                 except Exception as e:
                   mcts_logger.error(f"Error processing example: {e}")
+                  other_runs = example.get("runs")
+                  for r in other_runs:
+                      mcts_logger.info(f"Processing example: {type(example)} - {example}")
+                      try:
+                        flow = r.get("run").get("flow", {})
+                        mcts_logger.info(f"Flow details: {flow}")
+                        clf = re.sub(r'\d+', '', str(flow.get('implementation', '')))
+                        software_list = flow.get('software', [])
+                        software_str = ', '.join([f"{s['name']} {s['version']}" for s in software_list]) if isinstance(software_list, list) else str(software_list)
+                        software = re.sub(r'\d+', '', software_str)
+
+                        train_insight = await llm.aask(INSIGHT_PROPOSER.format(software=software, classifier=clf) + INSIGHT_PROPOSER_EXAMPLE)
+                        hyper_insight = await llm.aask(HYPERPARAMETER_PROPOSER.format(hyperparameter_settings=flow.get('hyperparametersettings', {})) + HYPERPARAMETER_PROPOSER_EXAMPLE)
+                        
+                        mcts_logger.info(f"Generated insights: {train_insight}, {hyper_insight}")
+
+                        predefined_insights[3]["insights"].append(train_insight)
+                        predefined_insights[4]["insights"].append(hyper_insight)
+                      except Exception as e:
+                          mcts_logger.error(f"Something went wrong: {e}")
                   continue
             mcts_logger.info(f"Predefined insights after processing: {predefined_insights}")
           
@@ -241,16 +266,21 @@ class OntoRAGSolutionDesigner:
                 if isinstance(result, str):
                     result = json.loads(result)
                 mcts_logger.info(f"Processing result: {result}")
-                predefined_insights[3]["score"].append({"train_score": result["train_score"], "test_score": result["test_score"]})
-                predefined_insights[4]["score"].append({"train_score": result["train_score"], "test_score": result["test_score"]})
+                if result['test_score'] == 1.0:
+                    result['test_score'] = 0 # A score of 1.0 indicates leakage or overfitting, set to 0 to avoid misleading the MCTS
+                predefined_insights[3]["score"].append({"train_score": result["train_score"], "test_score": result["test_score"], "score": result['test_score']})
+                predefined_insights[4]["score"].append({"train_score": result["train_score"], "test_score": result["test_score"], "score": result['test_score']})
 
                 if result["test_score"] > predefined_insights[2]["score"][0]["test_score"]:
                     predefined_insights[2]["score"][0]["test_score"] = result["test_score"]
                     predefined_insights[2]["score"][0]["train_score"] = result["train_score"]
+                    predefined_insights[2]["score"][0]["score"] = result['test_score']
                     predefined_insights[1]["score"][0]["test_score"] = result["test_score"]
                     predefined_insights[1]["score"][0]["train_score"] = result["train_score"]
+                    predefined_insights[1]["score"][0]["score"] = result['test_score']
                     predefined_insights[0]["score"][0]["test_score"] = result["test_score"]
                     predefined_insights[0]["score"][0]["train_score"] = result["train_score"]
+                    predefined_insights[0]["score"][0]["score"] = result['test_score']
 
             mcts_logger.info(f"Predefined insights after processing: {predefined_insights}")
             return predefined_insights
