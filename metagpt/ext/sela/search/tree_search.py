@@ -228,7 +228,7 @@ class Node:
         role.change_next_instruction(self.action)
         mcts_logger.info("MCTS", f"Saving new role: {role.node_id}")
         role = role.model_copy()
-        role.save_state(static_save=True)
+        role.save_state()
 
     async def expand(self, max_children: int, instruction_generator: InstructionGenerator):
         if self.is_fully_expanded():
@@ -243,7 +243,7 @@ class Node:
             original_instruction=original_instruction,
             max_num=max_children,
         )
-        if instruction_generator.with_pre_insights:
+        if instruction_generator.with_pretraining:
             mcts_logger.info(f"Scores from insights: {exist_scores}")
         new_state = self.state.copy()
         new_state["start_task_id"] += 1
@@ -252,7 +252,7 @@ class Node:
             node = Node(parent=self, state=new_state, action=insight, value=0)
 
             # if a score already has been retrieved, use it in the node for warm start
-            if instruction_generator.with_pre_insights:
+            if instruction_generator.with_pretraining:
                 if i < len(exist_scores) and exist_scores[i] is not None:
                     exist_scores[i]['score'] = exist_scores[i]['test_score']
                     node.update(reward=exist_scores[i])
