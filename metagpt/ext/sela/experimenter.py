@@ -168,7 +168,7 @@ class Experimenter(DataInterpreter):
         results = [task.result for task in self.planner.plan.tasks]
         return {"codes": codes, "results": results}
 
-    def save_state(self, static_save=False):
+    def save_state(self, static_save=True):
         """
         attribute:
             state_saved - the state has been saved
