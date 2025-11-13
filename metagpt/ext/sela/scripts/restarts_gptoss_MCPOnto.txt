@@ -1,0 +1,19 @@
+creditg \n
+icr \n
+jasmine \n
+kc1 \n
+kick \n
+mfeatfactors \n
+segment \n
+softwaredefects \n
+winequalitywhite \n
+creditg
+icr
+jasmine
+kc1
+kick
+mfeatfactors
+segment
+jasmine
+kick
+mfeatfactors
