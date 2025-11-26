@@ -60,13 +60,13 @@ class RunMLCode(Action):
             # store the code also as jupyter notebook
             # check if Node-0-0-0-0-0.ipynb already exists
             counter = 0
-            node_notebook_path = f'{self.role_dir}/{dataset}/Node-0-0-0-0-{counter}.ipynb'
+            node_notebook_path = f'{self.role_dir}/{dataset}/Node-0-0-0-{counter}.ipynb'
 
             # increment counter until a non-existing file is found
             while os.path.exists(node_notebook_path):
                 logger.info(f"Notebook {node_notebook_path} already exists. Skipping notebook creation.")
                 counter += 1
-                node_notebook_path = f'{self.role_dir}/{dataset}/Node-0-0-0-0-{counter}.ipynb'
+                node_notebook_path = f'{self.role_dir}/{dataset}/Node-0-0-0-{counter}.ipynb'
 
             executed_notebook = py2nb.convert(path, output_name=node_notebook_path)
             logger.info(f"Executed notebook saved at {node_notebook_path}.")
